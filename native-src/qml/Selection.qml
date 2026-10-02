@@ -21,7 +21,7 @@ Window {
     palette.dark: theme.frame
     flags: Qt.FramelessWindowHint
     color: theme.background
-    title: "Framelet — selecionar"
+    title: "Framelet — select"
     Shortcut {sequence: "Escape"; enabled: window.visible; onActivated: studio.cancelSelection()}
     Shortcut {sequence: "Tab"; enabled: window.visible && !window.dragging; onActivated: window.toggleMode()}
     Shortcut {sequence: "S"; enabled: window.visible && !window.dragging; onActivated: window.toggleScroll()}

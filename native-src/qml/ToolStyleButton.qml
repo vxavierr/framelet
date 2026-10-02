@@ -17,10 +17,10 @@ StudioButton {
         apply({color:String(color)});
     }
     property string kind: "text"
-    readonly property var names: ({text: "Texto", arrow: "Seta", line: "Linha", box: "Caixa", ellipse: "Elipse", pen: "Caneta", brush: "Pincel", highlight: "Realce", step: "Número", blur: "Desfoque"})
+    readonly property var names: ({text: "Text", arrow: "Arrow", line: "Line", box: "Box", ellipse: "Oval", pen: "Pen", brush: "Brush", highlight: "Highlight", step: "Step", blur: "Blur"})
     readonly property bool supported: names[kind] !== undefined
     readonly property string toolName: names[kind] || "Tool"
-    readonly property var plurals: ({text: "labels", arrow: "arrows", line: "lines", box: "boxes", ellipse: "ovals", pen: "traços", brush: "pinceladas", highlight: "highlights", step: "steps", blur: "blur areas"})
+    readonly property var plurals: ({text: "labels", arrow: "arrows", line: "lines", box: "boxes", ellipse: "ovals", pen: "strokes", brush: "brush strokes", highlight: "highlights", step: "steps", blur: "blur areas"})
     readonly property bool opened: editor.opened
     readonly property bool label: kind === "text"
     readonly property bool shape: kind === "box" || kind === "ellipse"
@@ -101,7 +101,7 @@ StudioButton {
                         Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.text; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 16; font.weight: Font.Medium }
                         StudioButton { Layout.preferredWidth: 28; glyph: "close"; quiet: true; implicitHeight: 28; hint: "Close style panel"; onClicked: editor.close() }
                     }
-                    Text { textFormat: Text.PlainText; Layout.topMargin: -10; text: control.selectedMark.type === control.kind ? "Selecionado: " + control.toolName.toLowerCase() : "Novos " + (control.plurals[control.kind] || "marks"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
+                    Text { textFormat: Text.PlainText; Layout.topMargin: -10; text: control.selectedMark.type === control.kind ? "Selected: " + control.toolName.toLowerCase() : "New " + (control.plurals[control.kind] || "marks"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 72
@@ -132,7 +132,7 @@ StudioButton {
                     ColumnLayout {
                         visible: control.atelierStudio !== null && control.kind !== "blur"
                         Layout.fillWidth: true; spacing: 8
-                        Text { textFormat: Text.PlainText; text: "Paleta"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; text: "Palette"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         ComboBox {
                             id: palettePicker; Layout.fillWidth: true
                             model: control.atelierStudio ? control.atelierStudio.palettes : []
@@ -141,13 +141,13 @@ StudioButton {
                         }
                         RowLayout {
                             Layout.fillWidth: true
-                            TextField { id: paletteName; Layout.fillWidth: true; placeholderText: "Salvar estas cinco cores"; font.pixelSize: 11 }
+                            TextField { id: paletteName; Layout.fillWidth: true; placeholderText: "Save these five colors"; font.pixelSize: 11 }
                             StudioButton {
-                                text: "Guardar"; font.pixelSize: 11; implicitHeight: 30
+                                text: "Save"; font.pixelSize: 11; implicitHeight: 30
                                 enabled: paletteName.text.trim().length > 0
                                 onClicked: {
                                     if (control.atelierStudio.savePalette(paletteName.text, control.paletteColors)) paletteName.text = "";
-                                    else paletteName.placeholderText = "Use um nome novo para a paleta";
+                                    else paletteName.placeholderText = "Use a new name for the palette";
                                 }
                             }
                         }
@@ -156,7 +156,7 @@ StudioButton {
                         id: inkChoice
                         visible: control.kind !== "blur"
                         Layout.fillWidth: true
-                        title: control.label ? "Cor do texto" : control.shape ? "Cor do contorno" : control.kind === "step" ? "Cor do círculo" : "Cor"
+                        title: control.label ? "Text color" : control.shape ? "Outline color" : control.kind === "step" ? "Circle color" : "Color"
                         swatches: control.atelierStudio ? control.paletteColors.map(c => ({color:c,name:c})) : [{color:"#ffffff",name:"White"},{color:"#151a20",name:"Dark"},{color:"#e75439",name:"Red"},{color:"#eab841",name:"Gold"},{color:"#459ec7",name:"Blue"},{color:"#4ca782",name:"Green"}]
                         value: control.style.color || "#e75439"
                         onChosen: color => control.pickPigment(color)
@@ -166,11 +166,11 @@ StudioButton {
                         visible: control.kind === "arrow"
                         Layout.fillWidth: true
                         spacing: 6
-                        Text { textFormat: Text.PlainText; text: "Ponta da seta"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; text: "Arrowhead"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                         Choice {
                             Layout.fillWidth: true
                             implicitHeight: 30
-                            model: ["Aberta", "Preenchida"]
+                            model: ["Open", "Filled"]
                             currentIndex: control.style.arrowHead === "filled" ? 1 : 0
                             onActivated: index => control.apply({arrowHead: index ? "filled" : "open"})
                         }
@@ -181,13 +181,13 @@ StudioButton {
                         spacing: 4
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.kind === "blur" ? "Intensidade" : control.kind === "step" ? "Tamanho" : "Espessura"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.kind === "blur" ? "Strength" : control.kind === "step" ? "Size" : "Thickness"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             Text { textFormat: Text.PlainText; text: Number(sizeSlider.value).toFixed(2).replace(/\.?0+$/, "") + "×"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
                         ThemedSlider {
                             id: sizeSlider
                             Layout.fillWidth: true
-                            Accessible.name: control.kind === "blur" ? "Blur strength" : control.kind === "step" ? "Step size" : "Espessura"
+                            Accessible.name: control.kind === "blur" ? "Blur strength" : control.kind === "step" ? "Step size" : "Thickness"
                             from: .5; to: 8; stepSize: .25
                             value: control.style.size || 1
                             onCommitted: value => control.apply({size: value})
@@ -196,14 +196,14 @@ StudioButton {
                     RecordToggle {
                         visible: control.stroke
                         Layout.fillWidth: true
-                        text: "Contorno de contraste"
+                        text: "Contrast outline"
                         checked: control.style.outline || false
                         onToggled: control.apply({outline: checked})
                     }
                     RecordToggle {
                         visible: control.label || control.shape
                         Layout.fillWidth: true
-                        text: control.label ? "Fundo do texto" : "Preenchimento"
+                        text: control.label ? "Text background" : "Fill"
                         checked: control.hasFill
                         onToggled: control.apply(control.label ? {textStyle: checked ? "box" : "shadow"} : {filled: checked})
                     }
@@ -211,7 +211,7 @@ StudioButton {
                         id: fillChoice
                         visible: control.hasFill
                         Layout.fillWidth: true
-                        title: control.label ? "Cor do fundo" : "Cor do preenchimento"
+                        title: control.label ? "Background color" : "Fill color"
                         value: control.style.background || "#151a20"
                         onChosen: color => control.apply({background: color.toString()})
                         onCustomChanged: if (custom) { inkChoice.custom = false; numberChoice.custom = false; }
@@ -220,7 +220,7 @@ StudioButton {
                         id: numberChoice
                         visible: control.kind === "step"
                         Layout.fillWidth: true
-                        title: "Cor do número"
+                        title: "Number color"
                         value: control.style.numberColor || "#ffffff"
                         onChosen: color => control.apply({numberColor: color.toString()})
                         onCustomChanged: if (custom) { inkChoice.custom = false; fillChoice.custom = false; }
@@ -231,13 +231,13 @@ StudioButton {
                         spacing: 4
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.label ? "Opacidade do fundo" : control.shape ? "Opacidade do preenchimento" : "Opacidade"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.label ? "Background opacity" : control.shape ? "Fill opacity" : "Opacity"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             Text { textFormat: Text.PlainText; text: Math.round(opacitySlider.value) + "%"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
                         ThemedSlider {
                             id: opacitySlider
                             Layout.fillWidth: true
-                            Accessible.name: control.label ? "Opacidade do fundo" : "Opacidade"
+                            Accessible.name: control.label ? "Background opacity" : "Opacity"
                             from: 0; to: 100; stepSize: 1
                             value: (control.label ? control.style.backgroundOpacity ?? 1 : control.style.opacity ?? .2) * 100
                             onCommitted: value => control.apply(control.label ? {backgroundOpacity: value/100} : {opacity: value/100})
@@ -249,7 +249,7 @@ StudioButton {
                         spacing: 12
                         ColumnLayout {
                             spacing: 6
-                            Text { textFormat: Text.PlainText; text: "Tamanho"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: "Size"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             NumberField {
                                 from: 8; to: 4096
                                 value: control.style.fontPx || 32
@@ -261,7 +261,7 @@ StudioButton {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            Text { textFormat: Text.PlainText; text: "Alinhamento"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: "Alignment"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             Choice {
                                 Layout.fillWidth: true
                                 implicitHeight: 30
@@ -271,12 +271,12 @@ StudioButton {
                             }
                         }
                     }
-                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "A aparência é lembrada para os próximos traços."; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "This look is remembered for your next marks."; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap }
                     RowLayout {
                         Layout.fillWidth: true
-                        StudioButton { text: "Restaurar"; quiet: true; implicitHeight: 32; font.pixelSize: 12; onClicked: control.label ? control.doc.resetLabelStyle() : control.doc.resetToolStyle(control.kind) }
+                        StudioButton { text: "Reset"; quiet: true; implicitHeight: 32; font.pixelSize: 12; onClicked: control.label ? control.doc.resetLabelStyle() : control.doc.resetToolStyle(control.kind) }
                         Item { Layout.fillWidth: true }
-                        StudioButton { text: "Pronto"; primary: true; implicitHeight: 32; font.pixelSize: 12; onClicked: editor.close() }
+                        StudioButton { text: "Done"; primary: true; implicitHeight: 32; font.pixelSize: 12; onClicked: editor.close() }
                     }
                 }
             }

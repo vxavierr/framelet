@@ -26,7 +26,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint
-    title: "Framelet — rolagem"
+    title: "Framelet — scrolling"
     readonly property var capture: studio.scrollCapture
     readonly property bool live: capture !== null && capture.active
     readonly property string headline: !live ? "Done"

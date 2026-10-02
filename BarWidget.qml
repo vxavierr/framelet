@@ -17,7 +17,7 @@ BarWidget {
         bar: root.bar
         text: ""
         opticalSize: Style.bar.iconFont
-        tooltipText: "Framelet — selecionar e anotar"
+        tooltipText: "Framelet — select and annotate"
         iconComponent: Item {
             Image {
                 anchors.centerIn: parent
@@ -45,11 +45,11 @@ BarWidget {
             width: parent.width; spacing: Style.space(4)
             Repeater {
                 model: [
-                    {name:"Selecionar e anotar",mode:"smart"},
-                    {name:"Tela inteira",mode:"fullscreen"},
-                    {name:"Captura com rolagem",mode:"scroll"},
-                    {name:"Cartão de código",mode:"code"},
-                    {name:"Gravar a tela",mode:"record"}
+                    {name:"Select and annotate",mode:"smart"},
+                    {name:"Full screen",mode:"fullscreen"},
+                    {name:"Scrolling capture",mode:"scroll"},
+                    {name:"Code card",mode:"code"},
+                    {name:"Record screen",mode:"record"}
                 ]
                 Rectangle {
                     required property var modelData

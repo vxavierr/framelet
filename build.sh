@@ -10,4 +10,4 @@ cmake -S "$source_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUI
 cmake --build "$build_dir" --target omaframe -j 3
 mkdir -p -- "$framelet_dir/native"
 install -m755 "$build_dir/framelet" "$framelet_dir/native/capture-engine"
-printf '%s\n' 'Framelet: motor compilado.'
+printf '%s\n' 'Framelet: engine built.'
