@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- Extend literal display text to status, palette-name and shared-button tooltips, whose Qt default also detects rich text.
+- Add an offline regression for the actual tooltip component.
+
 ## 0.3.1
 
 - Render annotation measurement and display labels as literal text, including imported file names, saved presets, paths and status messages. HTML-like input cannot turn these labels into remote image requests.

@@ -23,9 +23,12 @@ Button {
     font.family: theme.fontFamily
     font.pixelSize: 13
     Accessible.name: text.length ? text : hint
-    ToolTip.visible: tooltipEnabled && hovered && !down && hint.length > 0
-    ToolTip.text: hint
-    ToolTip.delay: 600
+    LiteralToolTip {
+        parent: control
+        visible: control.tooltipEnabled && control.hovered && !control.down && control.hint.length > 0
+        text: control.hint
+        delay: 600
+    }
     opacity: enabled ? 1 : 0.38
     readonly property color ink: danger ? theme.readableOn(theme.urgent) : primary ? theme.onAccent : selected ? theme.selectedText : quiet && !hovered ? theme.muted : theme.text
     background: Rectangle {

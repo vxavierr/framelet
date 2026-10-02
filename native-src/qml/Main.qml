@@ -1535,9 +1535,12 @@ ApplicationWindow {
                         font.pixelSize: 12
                         elide: Text.ElideRight
                         Layout.fillWidth: true
-                        ToolTip.visible: statusMouse.containsMouse && statusLine.truncated
-                        ToolTip.text: root.currentStatus
-                        ToolTip.delay: 400
+                        LiteralToolTip {
+                            parent: statusLine
+                            visible: statusMouse.containsMouse && statusLine.truncated
+                            text: root.currentStatus
+                            delay: 400
+                        }
                         MouseArea {
                             id: statusMouse
                             anchors.fill: parent

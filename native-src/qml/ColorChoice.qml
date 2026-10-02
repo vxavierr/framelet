@@ -52,9 +52,12 @@ ColumnLayout {
                     visible: swatch.picked
                     ink: theme.readableOn(swatch.modelData.color)
                 }
-                ToolTip.visible: hovered && !down
-                ToolTip.delay: 600
-                ToolTip.text: modelData.name
+                LiteralToolTip {
+                    parent: swatch
+                    visible: swatch.hovered && !swatch.down
+                    delay: 600
+                    text: swatch.modelData.name
+                }
             }
         }
         Item { Layout.fillWidth: true }

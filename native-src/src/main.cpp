@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
   mark("GUI application ready");
   app.setOrganizationName("Framelet");
   app.setApplicationName("Framelet");
-  app.setApplicationVersion("0.3.1");
+  app.setApplicationVersion("0.3.2");
   app.setDesktopFileName("io.github.vxavierr.framelet");
   // Copy the previous app's settings once; leave its original files intact.
   QSettings settings;

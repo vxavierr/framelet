@@ -33,6 +33,11 @@ private slots:
       QFile file(files.next());
       QVERIFY(file.open(QIODevice::ReadOnly));
       const QString source = QString::fromUtf8(file.readAll());
+      auto tooltips = QRegularExpression(R"(ToolTip\.text:\s*([^\n]+))").globalMatch(source);
+      while (tooltips.hasNext()) {
+        const auto tooltip = tooltips.next();
+        QVERIFY2(tooltip.captured(1).trimmed().startsWith('"'), qPrintable(file.fileName()));
+      }
       auto matches = QRegularExpression(R"(\bText\s*\{\s*([^;\n]*))").globalMatch(source);
       while (matches.hasNext()) {
         ++count;
@@ -41,6 +46,22 @@ private slots:
       }
     }
     QVERIFY(count > 100);
+  }
+  void tooltipNamesAreLiteral() {
+    OfflineFactory factory;
+    QQmlEngine engine;
+    engine.setNetworkAccessManagerFactory(&factory);
+    QQmlComponent component(&engine, QUrl::fromLocalFile(QStringLiteral(QML_SOURCE_DIR "/LiteralToolTip.qml")));
+    QScopedPointer<QObject> tooltip(component.create());
+    QVERIFY2(tooltip, qPrintable(component.errorString()));
+    QObject *label = tooltip->findChild<QObject*>("literalTooltipText");
+    QVERIFY(label);
+    const QString value = "Saved <img src=\"https://example.invalid/private.png\">.png";
+    tooltip->setProperty("text", value);
+    QCOMPARE(label->property("text").toString(), value);
+    QCOMPARE(label->property("textFormat").toInt(), 0);
+    QCoreApplication::processEvents();
+    QCOMPARE(factory.requests, 0);
   }
   void annotationsAndNamesAreLiteral() {
     QFile file(QStringLiteral(QML_SOURCE_DIR "/MarkCanvas.qml"));
