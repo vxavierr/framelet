@@ -144,7 +144,7 @@ ApplicationWindow {
             id: buttons; anchors.fill: parent; anchors.margins: 10
             spacing: 3
             Image { source:"FrameletIcon.svg";Layout.preferredWidth:24;Layout.preferredHeight:24;Layout.leftMargin:3;fillMode:Image.PreserveAspectFit }
-            Text { text: "Framelet"; color:theme.text;font.family:theme.fontFamily;font.pixelSize:13;font.weight:Font.DemiBold;Layout.leftMargin:3;Layout.rightMargin:8 }
+            Text { textFormat: Text.PlainText; text: "Framelet"; color:theme.text;font.family:theme.fontFamily;font.pixelSize:13;font.weight:Font.DemiBold;Layout.leftMargin:3;Layout.rightMargin:8 }
             Flickable {
                 Layout.fillWidth: true; Layout.preferredWidth: toolsRow.implicitWidth
                 Layout.preferredHeight: 34; clip:true
@@ -171,7 +171,7 @@ ApplicationWindow {
                 contentItem: RowLayout {
                     spacing: 7
                     Rectangle { width: 10; height: 10; radius: 5; color: style.style.color || theme.accent; Layout.alignment: Qt.AlignVCenter }
-                    Text { text: "Paleta"; color: style.ink; font.pixelSize: 12; font.family: theme.fontFamily }
+                    Text { textFormat: Text.PlainText; text: "Paleta"; color: style.ink; font.pixelSize: 12; font.family: theme.fontFamily }
                     Glyph { name: "chevron"; ink: style.ink; Layout.preferredWidth: 12; Layout.preferredHeight: 12 }
                 }
             }
@@ -204,8 +204,8 @@ ApplicationWindow {
             ColumnLayout {
                 width: parent.width
                 spacing: 14
-                Text { text: "Acabamento"; color: theme.text; font.pixelSize: 17; font.family: theme.fontFamily; font.weight: Font.DemiBold }
-                Text { text: "Escolha o suporte para a sua captura."; color: theme.muted; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Text { textFormat: Text.PlainText; text: "Acabamento"; color: theme.text; font.pixelSize: 17; font.family: theme.fontFamily; font.weight: Font.DemiBold }
+                Text { textFormat: Text.PlainText; text: "Escolha o suporte para a sua captura."; color: theme.muted; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 GridLayout {
                     columns: 2; Layout.fillWidth: true; rowSpacing: 8; columnSpacing: 8
                     Repeater {
@@ -224,9 +224,9 @@ ApplicationWindow {
                                 spacing: 4
                                 Row { spacing: 7
                                     Rectangle { width:14;height:14;radius:3;color:modelData.color;border.width:1;border.color:theme.controlBorder }
-                                    Text { text:modelData.name;color:theme.text;font.family:theme.fontFamily;font.pixelSize:12;font.weight:Font.DemiBold }
+                                    Text { textFormat: Text.PlainText; text:modelData.name;color:theme.text;font.family:theme.fontFamily;font.pixelSize:12;font.weight:Font.DemiBold }
                                 }
-                                Text { text:modelData.detail;color:theme.muted;font.family:theme.fontFamily;font.pixelSize:10 }
+                                Text { textFormat: Text.PlainText; text:modelData.detail;color:theme.muted;font.family:theme.fontFamily;font.pixelSize:10 }
                             }
                         }
                     }
@@ -249,30 +249,30 @@ ApplicationWindow {
                         ColorChoice { Layout.fillWidth: true; value: studio.framing.background; title: "Cor inicial"; onChosen: value => studio.configureFraming({background:String(value)}) }
                         ColorChoice { Layout.fillWidth: true; visible: studio.framing.backgroundMode==="gradient"; value: studio.framing.backgroundEnd; title: "Cor final"; onChosen: value => studio.configureFraming({backgroundEnd:String(value)}) }
                     }
-                    Text { text: "Cantos"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: "Cantos"; color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:0.15; value:studio.framing.corners; onMoved: studio.configureFraming({corners:value}) }
-                    Text { text: "Sombra"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: "Sombra"; color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:1; value:studio.framing.shadow; onMoved: studio.configureFraming({shadow:value}) }
-                    Text { text: "Respiro dentro da imagem"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: "Respiro dentro da imagem"; color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:0.15; value:studio.framing.inset; onMoved: studio.configureFraming({inset:value}) }
-                    Text { text:"Textura do papel"; color:theme.muted; font.pixelSize:12 }
+                    Text { textFormat: Text.PlainText; text:"Textura do papel"; color:theme.muted; font.pixelSize:12 }
                     ThemedSlider { Layout.fillWidth:true; from:0;to:1;value:studio.framing.paper;enabled:studio.framing.backgroundMode!=="transparent";onMoved:studio.configureFraming({paper:value}) }
                     CheckBox { text:"Passe-partout"; checked:studio.framing.mat;onToggled:studio.configureFraming({mat:checked}) }
                     CheckBox { text:"Barra de título"; checked:studio.framing.titlebar; onToggled:studio.configureFraming({titlebar:checked}) }
                     TextField { Layout.fillWidth:true; visible:studio.framing.titlebar; text:studio.framing.title; placeholderText:"Título"; onEditingFinished:studio.configureFraming({title:text}) }
                 }
-                Text { text:"Margem"; color:theme.muted; font.pixelSize:12 }
+                Text { textFormat: Text.PlainText; text:"Margem"; color:theme.muted; font.pixelSize:12 }
                 ThemedSlider { Layout.fillWidth:true; from:0.02; to:0.22; value:studio.padding; enabled:studio.style!==8 || studio.framing.custom; onMoved:studio.padding=value }
                 ComboBox { Layout.fillWidth:true; model:["Proporção original","Quadrado · 1:1","Horizontal · 16:9","Clássico · 4:3","Vertical · 9:16"]; currentIndex:studio.aspect; onActivated:studio.aspect=currentIndex }
                 Rectangle { Layout.fillWidth:true; height:1; color:theme.separator }
-                Text { text:"Seus presets"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
+                Text { textFormat: Text.PlainText; text:"Seus presets"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
                 ComboBox { Layout.fillWidth:true; visible:studio.lookNames.length>0; model:studio.lookNames; onActivated:studio.applyLook(currentText) }
                 RowLayout {
                     Layout.fillWidth:true
                     TextField { id:lookName; Layout.fillWidth:true; placeholderText:"Nome do preset" }
                     StudioButton { text:"Guardar"; enabled:lookName.text.trim().length>0; onClicked:{studio.saveLook(lookName.text);lookName.text="";} }
                 }
-                Text { text:"Composição"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
+                Text { textFormat: Text.PlainText; text:"Composição"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
                 RowLayout {
                     StudioButton { text:"Lado a lado"; glyph:"plus"; onClicked:{addDialog.vertical=false;addDialog.open();} }
                     StudioButton { text:"Empilhar"; onClicked:{addDialog.vertical=true;addDialog.open();} }
@@ -305,8 +305,8 @@ ApplicationWindow {
         onOpened:codeEditor.forceActiveFocus()
         contentItem:ColumnLayout {
             spacing:16
-            Text{text:"Cartão de código";color:theme.text;font.pixelSize:20;font.weight:Font.DemiBold}
-            Text{text:"Cole o código e aplique o mesmo fundo e moldura da captura.";color:theme.muted;font.pixelSize:12;Layout.fillWidth:true;wrapMode:Text.Wrap}
+            Text{ textFormat: Text.PlainText;text:"Cartão de código";color:theme.text;font.pixelSize:20;font.weight:Font.DemiBold}
+            Text{ textFormat: Text.PlainText;text:"Cole o código e aplique o mesmo fundo e moldura da captura.";color:theme.muted;font.pixelSize:12;Layout.fillWidth:true;wrapMode:Text.Wrap}
             ScrollView {
                 Layout.fillWidth:true;Layout.fillHeight:true
                 TextArea{id:codeEditor;placeholderText:"Seu código aqui…";font.family:"monospace";font.pixelSize:14;wrapMode:TextEdit.NoWrap;selectByMouse:true;tabStopDistance:32}
@@ -315,7 +315,7 @@ ApplicationWindow {
                 Layout.fillWidth:true
                 ComboBox{id:codeLanguage;model:["txt","javascript","typescript","python","json","bash","rust","go","css","html"];Layout.preferredWidth:150}
                 CheckBox{id:codeNumbers;text:"Número das linhas";checked:true}
-                Text{text:"Fonte";color:theme.muted;font.pixelSize:12}
+                Text{ textFormat: Text.PlainText;text:"Fonte";color:theme.muted;font.pixelSize:12}
                 SpinBox{id:codeSize;from:12;to:32;value:16}
                 Item{Layout.fillWidth:true}
             }
@@ -332,6 +332,7 @@ ApplicationWindow {
         width: statusLabel.implicitWidth + 24; height: 28; radius: 7
         color: theme.alpha(theme.background, 0.95)
         Text {
+            textFormat: Text.PlainText
             id: statusLabel; anchors.centerIn: parent; color: theme.muted; font.pixelSize: 11; font.family: theme.fontFamily
             text: studio.busy || root.pending || studio.quickState === "failed" || studio.quickState === "capture-error" ? studio.status : "Super+C copiar    Super+S salvar    Esc cancelar" + (studio.inlineScroll ? "    Role para percorrer" : "")
         }

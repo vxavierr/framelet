@@ -68,6 +68,7 @@ Window {
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText
                     text: control.headline
                     color: theme.text
                     font.family: theme.fontFamily
@@ -75,6 +76,7 @@ Window {
                     font.weight: Font.Medium
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: control.progress
                     color: theme.muted
@@ -106,6 +108,7 @@ Window {
                 }
             }
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: control.note
                 color: control.capture !== null && control.capture.warning ? theme.urgent : theme.muted

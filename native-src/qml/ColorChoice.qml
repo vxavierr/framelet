@@ -26,7 +26,7 @@ ColumnLayout {
         brightness = value.hsvValue;
     }
     onValueChanged: restore()
-    Text { text: choice.title; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+    Text { textFormat: Text.PlainText; text: choice.title; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
     RowLayout {
         Layout.fillWidth: true
         spacing: 6
@@ -142,7 +142,7 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { Layout.fillWidth: true; text: "Hex color"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Hex color"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
             TextField {
                 id: hex
                 Layout.preferredWidth: 102

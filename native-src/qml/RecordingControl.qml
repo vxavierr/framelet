@@ -64,6 +64,7 @@ Window {
                 Layout.fillWidth: true
                 spacing: 1
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: control.countdownOnly
                           ? "Recording in " + recorder.remaining
@@ -77,6 +78,7 @@ Window {
                     color: theme.text
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: control.countdownOnly || control.paused
                     text: control.paused ? "Paused" : recorder.stopKey + " stops" + (recorder.pauseKey.length ? " · " + recorder.pauseKey + " pauses" : "")
@@ -99,6 +101,7 @@ Window {
                 padding: 7
                 text: control.paused ? "Resume" : "Pause"
                 contentItem: Text {
+                    textFormat: Text.PlainText
                     text: pause.text
                     color: pause.ink
                     font: pause.font
@@ -124,7 +127,7 @@ Window {
                         anchors.centerIn: parent
                         spacing: 6
                         Rectangle {visible: recorder.state !== "countdown"; width: 9; height: 9; anchors.verticalCenter: parent.verticalCenter; color: theme.readableOn(stop.fill)}
-                        Text {text: stop.text; color: theme.readableOn(stop.fill); font.family: theme.fontFamily; font.bold: true; font.pixelSize: 13}
+                        Text { textFormat: Text.PlainText;text: stop.text; color: theme.readableOn(stop.fill); font.family: theme.fontFamily; font.bold: true; font.pixelSize: 13}
                     }
                 }
             }

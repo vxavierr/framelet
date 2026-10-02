@@ -12,6 +12,7 @@ ComboBox {
     hoverEnabled: true
     Keys.onEscapePressed: { if (popup.opened) popup.close(); else focus = false; }
     contentItem: Text {
+        textFormat: Text.PlainText
         text: control.displayText
         color: control.enabled ? theme.text : theme.faint
         font: control.font
@@ -64,6 +65,7 @@ ComboBox {
         hoverEnabled: true
         highlighted: control.highlightedIndex === index
         contentItem: Text {
+            textFormat: Text.PlainText
             text: typeof option.modelData === "object" && option.modelData !== null && control.textRole ? option.modelData[control.textRole] : option.modelData
             color: control.currentIndex === option.index ? theme.selectedText : theme.text
             font: control.font

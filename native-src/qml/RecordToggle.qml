@@ -36,6 +36,7 @@ CheckBox {
         }
     }
     contentItem: Text {
+        textFormat: Text.PlainText
         id: label
         leftPadding: 52
         text: control.text

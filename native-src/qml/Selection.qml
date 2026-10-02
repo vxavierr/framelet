@@ -149,6 +149,7 @@ Window {
         border.width: 1
         border.color: window.mark
         Text {
+            textFormat: Text.PlainText
             id: sizeText
             anchors.centerIn: parent
             text: Math.round(window.sw) + " × " + Math.round(window.sh)
@@ -224,6 +225,7 @@ Window {
         border.width: 1
         border.color: theme.controlBorder
         Text {
+            textFormat: Text.PlainText
             id: keyLabel
             anchors.centerIn: parent
             text: parent.key
@@ -262,6 +264,7 @@ Window {
                 Layout.preferredHeight: 16
             }
             Text {
+                textFormat: Text.PlainText
                 visible: !mode.compact
                 text: mode.label
                 color: mode.chosen ? theme.text : theme.muted
@@ -304,7 +307,7 @@ Window {
             anchors.centerIn: parent
             spacing: 6
             Glyph { name: toggle.glyph; ink: toggle.on ? theme.selectedText : theme.muted; Layout.preferredWidth: 15; Layout.preferredHeight: 15 }
-            Text { visible: toggle.label.length > 0; text: toggle.label; color: toggle.on ? theme.text : theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+            Text { textFormat: Text.PlainText; visible: toggle.label.length > 0; text: toggle.label; color: toggle.on ? theme.text : theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
         }
         MouseArea {
             id: toggleMouse
@@ -365,6 +368,7 @@ Window {
             }
             Rectangle {visible: bar.showPrompt; Layout.fillHeight: true; Layout.topMargin: 6; Layout.bottomMargin: 6; Layout.leftMargin: 4; Layout.rightMargin: 4; width: 1; color: theme.separator}
             Text {
+                textFormat: Text.PlainText
                 visible: bar.showPrompt
                 text: studio.recordingSelection ? "Click a window or drag an area to record"
                     : studio.scrollSelection ? "Click a window to scroll and stitch it"
@@ -418,9 +422,9 @@ Window {
             }
             Rectangle {visible: bar.showHints; Layout.fillHeight: true; Layout.topMargin: 6; Layout.bottomMargin: 6; Layout.leftMargin: 4; Layout.rightMargin: 4; width: 1; color: theme.separator}
             Keycap {visible: bar.showHints; key: "Tab"}
-            Text {visible: bar.showHints; text: studio.recordingSelection ? "Screenshot" : "Video"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.recordingSelection ? "Screenshot" : "Video"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
             Keycap {visible: bar.showHints; key: "S"}
-            Text {visible: bar.showHints; text: studio.scrollSelection ? "Screenshot" : "Scroll"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.scrollSelection ? "Screenshot" : "Scroll"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
             Keycap {
                 key: "Esc"
                 Accessible.role: Accessible.Button
@@ -428,7 +432,7 @@ Window {
                 Accessible.onPressAction: studio.cancelSelection()
                 MouseArea {anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: studio.cancelSelection()}
             }
-            Text {visible: bar.showHints; text: "Cancel"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: "Cancel"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
         }
     }
     BarHint {
@@ -449,6 +453,7 @@ Window {
         radius: theme.radius
         color: theme.alpha(theme.background, 1)
         Text {
+            textFormat: Text.PlainText
             id: selectionHint
             anchors.fill: parent
             anchors.margins: 6
@@ -474,6 +479,7 @@ Window {
         radius: theme.radius
         color: theme.alpha(theme.background, 0.94)
         Text {
+            textFormat: Text.PlainText
             id: loadingText
             anchors.centerIn: parent
             text: "Checking audio and displays…"

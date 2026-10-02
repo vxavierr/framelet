@@ -54,7 +54,7 @@ StudioButton {
             id: buttonContent
             anchors.centerIn: parent
             spacing: 8
-            Text { text: control.text; color: control.ink; font: control.font }
+            Text { textFormat: Text.PlainText; text: control.text; color: control.ink; font: control.font }
             Glyph { name: "chevron"; ink: control.ink; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
         }
     }
@@ -98,10 +98,10 @@ StudioButton {
                     spacing: 14
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { Layout.fillWidth: true; text: control.text; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 16; font.weight: Font.Medium }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.text; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 16; font.weight: Font.Medium }
                         StudioButton { Layout.preferredWidth: 28; glyph: "close"; quiet: true; implicitHeight: 28; hint: "Close style panel"; onClicked: editor.close() }
                     }
-                    Text { Layout.topMargin: -10; text: control.selectedMark.type === control.kind ? "Selecionado: " + control.toolName.toLowerCase() : "Novos " + (control.plurals[control.kind] || "marks"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
+                    Text { textFormat: Text.PlainText; Layout.topMargin: -10; text: control.selectedMark.type === control.kind ? "Selecionado: " + control.toolName.toLowerCase() : "Novos " + (control.plurals[control.kind] || "marks"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 72
@@ -132,7 +132,7 @@ StudioButton {
                     ColumnLayout {
                         visible: control.atelierStudio !== null && control.kind !== "blur"
                         Layout.fillWidth: true; spacing: 8
-                        Text { text: "Paleta"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; text: "Paleta"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         ComboBox {
                             id: palettePicker; Layout.fillWidth: true
                             model: control.atelierStudio ? control.atelierStudio.palettes : []
@@ -166,7 +166,7 @@ StudioButton {
                         visible: control.kind === "arrow"
                         Layout.fillWidth: true
                         spacing: 6
-                        Text { text: "Ponta da seta"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; text: "Ponta da seta"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                         Choice {
                             Layout.fillWidth: true
                             implicitHeight: 30
@@ -181,8 +181,8 @@ StudioButton {
                         spacing: 4
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: control.kind === "blur" ? "Intensidade" : control.kind === "step" ? "Tamanho" : "Espessura"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
-                            Text { text: Number(sizeSlider.value).toFixed(2).replace(/\.?0+$/, "") + "×"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.kind === "blur" ? "Intensidade" : control.kind === "step" ? "Tamanho" : "Espessura"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: Number(sizeSlider.value).toFixed(2).replace(/\.?0+$/, "") + "×"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
                         ThemedSlider {
                             id: sizeSlider
@@ -231,8 +231,8 @@ StudioButton {
                         spacing: 4
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { Layout.fillWidth: true; text: control.label ? "Opacidade do fundo" : control.shape ? "Opacidade do preenchimento" : "Opacidade"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
-                            Text { text: Math.round(opacitySlider.value) + "%"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: control.label ? "Opacidade do fundo" : control.shape ? "Opacidade do preenchimento" : "Opacidade"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: Math.round(opacitySlider.value) + "%"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
                         ThemedSlider {
                             id: opacitySlider
@@ -249,7 +249,7 @@ StudioButton {
                         spacing: 12
                         ColumnLayout {
                             spacing: 6
-                            Text { text: "Tamanho"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: "Tamanho"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             NumberField {
                                 from: 8; to: 4096
                                 value: control.style.fontPx || 32
@@ -261,7 +261,7 @@ StudioButton {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 6
-                            Text { text: "Alinhamento"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; text: "Alinhamento"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
                             Choice {
                                 Layout.fillWidth: true
                                 implicitHeight: 30
@@ -271,7 +271,7 @@ StudioButton {
                             }
                         }
                     }
-                    Text { Layout.fillWidth: true; text: "A aparência é lembrada para os próximos traços."; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "A aparência é lembrada para os próximos traços."; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap }
                     RowLayout {
                         Layout.fillWidth: true
                         StudioButton { text: "Restaurar"; quiet: true; implicitHeight: 32; font.pixelSize: 12; onClicked: control.label ? control.doc.resetLabelStyle() : control.doc.resetToolStyle(control.kind) }

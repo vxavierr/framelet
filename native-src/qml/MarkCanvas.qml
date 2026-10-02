@@ -497,12 +497,14 @@ Item {
                 }
             }
             Text {
+                textFormat: Text.PlainText
                 id: measure
                 visible: false
                 font: field.font
                 text: field.text.length ? field.text : " "
             }
             Text {
+                textFormat: Text.PlainText
                 id: placeholder
                 visible: field.length === 0
                 anchors.centerIn: parent
@@ -522,6 +524,7 @@ Item {
             border.width: 1
             border.color: theme.controlBorder
             Text {
+                textFormat: Text.PlainText
                 id: hintText
                 anchors.fill: parent
                 anchors.margins: 6

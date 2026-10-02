@@ -35,6 +35,7 @@ RowLayout {
             border.color: stepButton.hovered ? theme.hoverBorder : theme.controlBorder
         }
         contentItem: Text {
+            textFormat: Text.PlainText
             text: stepButton.sign === "+" ? "+" : "−"
             color: stepButton.enabled ? theme.text : theme.faint
             font.family: theme.fontFamily
@@ -68,6 +69,7 @@ RowLayout {
         Keys.onUpPressed: field.commit(field.value + field.step)
         Keys.onDownPressed: field.commit(field.value - field.step)
         Text {
+            textFormat: Text.PlainText
             anchors.right: parent.right
             anchors.rightMargin: 7
             anchors.verticalCenter: parent.verticalCenter

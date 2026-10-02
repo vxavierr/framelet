@@ -28,6 +28,7 @@ Popup {
     contentItem: ColumnLayout {
         spacing: 14
         Text {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: dialog.title
             color: theme.text
@@ -37,6 +38,7 @@ Popup {
             wrapMode: Text.Wrap
         }
         Text {
+            textFormat: Text.PlainText
             Layout.fillWidth: true
             text: dialog.message
             color: theme.muted

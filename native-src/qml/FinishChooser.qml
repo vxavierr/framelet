@@ -92,11 +92,11 @@ Window {
                     ColumnLayout {
                         spacing: 3
                         Layout.fillWidth: true
-                    Text {text: chooser.captureError ? "Capture needs attention" : chooser.accepting ? "Finishing your screenshot…" : studio.recoveryAction.length ? "Screenshot saved" : "Choose a finish"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 20; font.weight: Font.Medium; Layout.fillWidth: true; elide: Text.ElideRight}
-                    Text {text: chooser.captureError ? "Your clipboard is unchanged." : studio.recoveryAction.length ? "Retry the unfinished step, or choose another finish." : studio.dimensions + "   ·   Click a card or press 1–9. Press E to edit first."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight}
+                    Text { textFormat: Text.PlainText;text: chooser.captureError ? "Capture needs attention" : chooser.accepting ? "Finishing your screenshot…" : studio.recoveryAction.length ? "Screenshot saved" : "Choose a finish"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 20; font.weight: Font.Medium; Layout.fillWidth: true; elide: Text.ElideRight}
+                    Text { textFormat: Text.PlainText;text: chooser.captureError ? "Your clipboard is unchanged." : studio.recoveryAction.length ? "Retry the unfinished step, or choose another finish." : studio.dimensions + "   ·   Click a card or press 1–9. Press E to edit first."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight}
                     }
                     StudioButton {text: "Edit"; glyph: "crop"; enabled: chooser.ready; hint: "Crop, annotate, redact · E"; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.openEditor(); Keys.onEnterPressed: studio.openEditor(); onClicked: studio.openEditor()}
-                    Text {text: "E"; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 10}
+                    Text { textFormat: Text.PlainText;text: "E"; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 10}
                     StudioButton {glyph: "close"; quiet: true; enabled: !studio.busy; hint: "Cancel · Esc"; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.dismissQuick(); Keys.onEnterPressed: studio.dismissQuick(); onClicked: studio.dismissQuick()}
                 }
                 RowLayout {
@@ -104,7 +104,7 @@ Window {
                     Layout.fillWidth: true
                     spacing: 12
                     StudioButton {text: "Hide " + studio.secretCount + (studio.secretCount === 1 ? " possible secret" : " possible secrets"); glyph: "redact"; primary: true; enabled: chooser.ready; hint: "Redact possible keys, tokens, emails and card numbers · H"; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.hideSecrets(); Keys.onEnterPressed: studio.hideSecrets(); onClicked: studio.hideSecrets()}
-                    Text {Layout.fillWidth: true; text: "Check the screenshot for anything else before sharing."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap}
+                    Text { textFormat: Text.PlainText;Layout.fillWidth: true; text: "Check the screenshot for anything else before sharing."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap}
                 }
                 GridLayout {
                     visible: !chooser.captureError
@@ -154,20 +154,21 @@ Window {
                                     fillMode: studio.tallImage ? Image.PreserveAspectCrop : Image.PreserveAspectFit
                                     verticalAlignment: studio.tallImage ? Image.AlignTop : Image.AlignVCenter
                                 }
-                                Text {anchors.centerIn: parent; visible: studio.rendering; text: "Preparing…"; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 12}
+                                Text { textFormat: Text.PlainText;anchors.centerIn: parent; visible: studio.rendering; text: "Preparing…"; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 12}
                                 RowLayout {
                                     id: labelRow
                                     anchors {left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 11; rightMargin: 11; bottomMargin: 9}
                                     spacing: 9
-                                    Rectangle {width: 22; height: 22; radius: theme.radius; color: studio.style === tile.index ? theme.selectedFill : "transparent"; border.width: 1; border.color: theme.controlBorder; Text {anchors.centerIn: parent; text: tile.index+1; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 11}}
-                                    Text {text: studio.styles[tile.index]; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight}
-                                    Text {visible: tile.width >= 220; text: tile.index===8 ? "No border" : studio.style===tile.index ? "Last used" : ""; color: studio.style===tile.index ? theme.selectedText : theme.muted; font.family: theme.fontFamily; font.pixelSize: 11}
+                                    Rectangle {width: 22; height: 22; radius: theme.radius; color: studio.style === tile.index ? theme.selectedFill : "transparent"; border.width: 1; border.color: theme.controlBorder; Text { textFormat: Text.PlainText;anchors.centerIn: parent; text: tile.index+1; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 11}}
+                                    Text { textFormat: Text.PlainText;text: studio.styles[tile.index]; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight}
+                                    Text { textFormat: Text.PlainText;visible: tile.width >= 220; text: tile.index===8 ? "No border" : studio.style===tile.index ? "Last used" : ""; color: studio.style===tile.index ? theme.selectedText : theme.muted; font.family: theme.fontFamily; font.pixelSize: 11}
                                 }
                             }
                         }
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText
                     visible: studio.quickState === "failed" || chooser.captureError
                     Layout.fillWidth: true
                     text: studio.status
@@ -178,6 +179,7 @@ Window {
                 }
                 Item {visible: chooser.captureError; Layout.fillHeight: true}
                 Text {
+                    textFormat: Text.PlainText
                     visible: studio.textNote.length > 0 && !chooser.captureError
                     Layout.fillWidth: true
                     text: studio.textNote
@@ -190,9 +192,9 @@ Window {
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text {text: chooser.accepting ? "Saving and copying. One moment…" : studio.recoveryAction.length ? "The finished PNG is already saved" : "A finish is copied and saved to " + studio.outputDirectory.replace(/^\/home\/[^/]+/, "~"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideMiddle}
+                    Text { textFormat: Text.PlainText;text: chooser.accepting ? "Saving and copying. One moment…" : studio.recoveryAction.length ? "The finished PNG is already saved" : "A finish is copied and saved to " + studio.outputDirectory.replace(/^\/home\/[^/]+/, "~"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideMiddle}
                     StudioButton {text: "Copy text"; glyph: "text"; visible: studio.canReadText && !chooser.captureError; quiet: true; enabled: chooser.ready; hint: "Copy text recognized in this screenshot · T"; implicitHeight: 32; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.copyText(); Keys.onEnterPressed: studio.copyText(); onClicked: studio.copyText()}
-                    Text {text: "↵  Last finish"; visible: !chooser.captureError && panel.width >= 850; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.rightMargin: 12}
+                    Text { textFormat: Text.PlainText;text: "↵  Last finish"; visible: !chooser.captureError && panel.width >= 850; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.rightMargin: 12}
                     StudioButton {visible: studio.quickState === "failed" && !studio.recoveryAction.length; text: chooser.inlineFolderDialog ? "Change folder" : "Edit to change folder"; glyph: "folder"; enabled: chooser.ready; implicitHeight: 32; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: chooser.changeFolder(); Keys.onEnterPressed: chooser.changeFolder(); onClicked: chooser.changeFolder()}
                     StudioButton {visible: studio.recoveryAction.length > 0; text: studio.recoveryAction; glyph: "copy"; primary: true; enabled: !studio.busy; implicitHeight: 32; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.retryOutput(); Keys.onEnterPressed: studio.retryOutput(); onClicked: studio.retryOutput()}
                     StudioButton {text: chooser.captureError ? "Try capture again" : "Retake"; glyph: "capture"; quiet: !chooser.captureError; enabled: !studio.busy; hint: "Select a new region · R"; implicitHeight: 32; Keys.forwardTo: [keyboard]; Keys.onReturnPressed: studio.capture(true); Keys.onEnterPressed: studio.capture(true); onClicked: studio.capture(true)}

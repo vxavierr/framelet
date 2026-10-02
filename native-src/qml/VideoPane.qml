@@ -454,6 +454,7 @@ Item {
     // Inline components do not see this file's ids; they get what they need
     // through properties.
     component Caption: Text {
+        textFormat: Text.PlainText
         font.family: theme.fontFamily
         font.pixelSize: 10
         font.letterSpacing: 0.8
@@ -558,6 +559,7 @@ Item {
             Layout.bottomMargin: pane.compact ? 6 : 12
             spacing: 14
             Text {
+                textFormat: Text.PlainText
                 text: pane.loaded ? video.name : "No video open"
                 font.pixelSize: 14
                 font.weight: Font.Medium
@@ -583,7 +585,7 @@ Item {
                     anchors.bottomMargin: 6
                     spacing: 6
                     Glyph { name: "check"; ink: theme.selectedText; Layout.preferredWidth: 14; Layout.preferredHeight: 14 }
-                    Text { Layout.fillWidth: true; text: "Saved " + video.savedName + (video.savedSummary.length ? " · " + video.savedSummary : ""); color: theme.selectedText; font.pixelSize: 11; elide: Text.ElideMiddle }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Saved " + video.savedName + (video.savedSummary.length ? " · " + video.savedSummary : ""); color: theme.selectedText; font.pixelSize: 11; elide: Text.ElideMiddle }
                 }
             }
             StudioButton {
@@ -600,7 +602,7 @@ Item {
                     background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: 2; border.color: theme.frame }
                     contentItem: ColumnLayout {
                         spacing: 10
-                        Text { text: "Camera overlay"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
+                        Text { textFormat: Text.PlainText; text: "Camera overlay"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
                         RecordToggle {
                             Layout.fillWidth: true; text: "Show camera"; checked: video.cameraLayout.visible
                             onToggled: pane.changeCamera({ visible: checked })
@@ -621,11 +623,12 @@ Item {
                                 y: currentIndex < 2 ? 0.98 - video.cameraBounds.height : 0.02
                             })
                         }
-                        Text { Layout.fillWidth: true; text: "Pause playback, then drag the camera to move it. Changes can be undone."; color: theme.muted; font.pixelSize: 11; wrapMode: Text.Wrap }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Pause playback, then drag the camera to move it. Changes can be undone."; color: theme.muted; font.pixelSize: 11; wrapMode: Text.Wrap }
                     }
                 }
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.loaded && !pane.savedCurrent
                 Layout.maximumWidth: pane.width * 0.45
                 elide: Text.ElideMiddle
@@ -835,12 +838,14 @@ Item {
                 visible: !pane.loaded
                 spacing: 8
                 Text {
+                    textFormat: Text.PlainText
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: video.busy ? "Opening your video…" : "Open a video to edit it."
                     color: theme.text
                     font.pixelSize: 15
                 }
                 Text {
+                    textFormat: Text.PlainText
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "MP4 · WebM · MOV · MKV"
                     color: theme.faint
@@ -858,6 +863,7 @@ Item {
                 border.width: 1
                 border.color: theme.alpha(theme.urgent, 0.4)
                 Text {
+                    textFormat: Text.PlainText
                     id: playbackError
                     anchors.fill: parent
                     anchors.margins: 15
@@ -882,6 +888,7 @@ Item {
                     width: Math.min(280, stage.width - 32)
                     spacing: pane.compact ? 8 : 14
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: video.status
                         color: theme.text
@@ -906,6 +913,7 @@ Item {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.alignment: Qt.AlignHCenter
                         text: Math.round(video.progress * 100) + "%   ·   " + pane.time(pane.outputDuration) + " long"
                         color: theme.muted
@@ -939,6 +947,7 @@ Item {
                 Layout.leftMargin: 4
                 spacing: 8
                 Text {
+                    textFormat: Text.PlainText
                     id: clock
                     text: pane.time(pane.head)
                     color: theme.text
@@ -946,6 +955,7 @@ Item {
                     font.weight: Font.Medium
                 }
                 Text {
+                    textFormat: Text.PlainText
                     anchors.baseline: clock.baseline
                     text: "/ " + pane.time(video.duration)
                     color: theme.faint
@@ -990,6 +1000,7 @@ Item {
                 text: "LENGTH"
             }
             Text {
+                textFormat: Text.PlainText
                 text: pane.time(pane.outputDuration)
                 color: theme.selectedText
                 font.pixelSize: 13
@@ -1075,6 +1086,7 @@ Item {
             Layout.preferredHeight: 36
             spacing: 8
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "tool"
                 Layout.fillWidth: true
                 text: ({
@@ -1109,6 +1121,7 @@ Item {
                 ToolTip.text: "When it starts · I sets it at the playhead"
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "mark"
                 text: "to"
                 color: theme.muted
@@ -1126,6 +1139,7 @@ Item {
                 ToolTip.text: "When it ends · O sets it at the playhead"
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "mark"
                 Layout.fillWidth: true
                 readonly property bool toEnd: pane.selectedMark.end >= video.duration - 0.0005
@@ -1167,6 +1181,7 @@ Item {
                 onClicked: video.marks.clearSelection()
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "none"
                 Layout.fillWidth: true
                 text: pane.notice.length ? pane.notice
@@ -1192,6 +1207,7 @@ Item {
                 onCommitted: seconds => pane.hasSelection ? pane.setSelectionStart(seconds) : pane.setCutTimes(pane.selectedCut, seconds, pane.cuts[pane.selectedCut].end)
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "part" || pane.barMode === "cut"
                 text: "to"
                 color: theme.muted
@@ -1206,6 +1222,7 @@ Item {
                 onCommitted: seconds => pane.hasSelection ? pane.setSelectionEnd(seconds) : pane.setCutTimes(pane.selectedCut, pane.cuts[pane.selectedCut].start, seconds)
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.barMode === "part" || pane.barMode === "cut"
                 text: "(" + ((pane.hasSelection ? pane.selEnd - pane.selStart : pane.selectedCut >= 0 ? pane.cuts[pane.selectedCut].end - pane.cuts[pane.selectedCut].start : 0)).toFixed(1) + " s)"
                 color: theme.faint
@@ -1238,6 +1255,7 @@ Item {
                 onClicked: pane.clearSelection()
             }
             Text {
+                textFormat: Text.PlainText
                 visible: pane.notice.length > 0 && (pane.barMode === "part" || pane.barMode === "cut")
                 Layout.fillWidth: true
                 text: pane.notice
@@ -1403,6 +1421,7 @@ Item {
                             border.width: 1
                             border.color: theme.urgent
                             Text {
+                                textFormat: Text.PlainText
                                 id: removedLabel
                                 anchors.centerIn: parent
                                 text: "REMOVED"
@@ -1430,6 +1449,7 @@ Item {
                         radius: theme.radius
                         color: theme.accent
                         Text {
+                            textFormat: Text.PlainText
                             id: selectedLabel
                             anchors.centerIn: parent
                             text: "SELECTED"
@@ -1605,6 +1625,7 @@ Item {
                             color: theme.faint
                         }
                         Text {
+                            textFormat: Text.PlainText
                             x: index === 0 ? 0 : parent.x + width / 2 > ruler.width ? -width : -width / 2
                             y: 5
                             text: Math.floor(parent.seconds / 60) + ":" + Math.floor(parent.seconds % 60).toString().padStart(2, "0") + (parent.seconds % 1 ? ".5" : "")

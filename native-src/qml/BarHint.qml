@@ -23,6 +23,7 @@ Rectangle {
     Timer { id: delay; interval: 500; onTriggered: hint.ready = true }
     TextMetrics { id: metrics; text: hint.text; font: label.font }
     Text {
+        textFormat: Text.PlainText
         id: label
         anchors.fill: parent
         anchors.margins: 6

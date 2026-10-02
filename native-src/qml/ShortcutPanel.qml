@@ -36,6 +36,7 @@ ColumnLayout {
             border.width: 1
             border.color: theme.controlBorder
             Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: shortcutRow.key
                 color: theme.text
@@ -50,6 +51,7 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: shortcutRow.label
                 color: theme.text
@@ -67,6 +69,7 @@ ColumnLayout {
                     color: shortcutRow.ready ? theme.accent : shortcutRow.status === "Used by another action" ? theme.urgent : theme.faint
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: shortcutRow.status
                     wrapMode: Text.Wrap
@@ -96,6 +99,7 @@ ColumnLayout {
         status: panel.describe(shortcuts.pauseKey, shortcuts.pauseState, "pause")
     }
     Text {
+        textFormat: Text.PlainText
         Layout.fillWidth: true
         visible: text.length > 0
         text: shortcuts.message.length ? shortcuts.message

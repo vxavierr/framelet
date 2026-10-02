@@ -353,8 +353,9 @@ ApplicationWindow {
         }
         contentItem: ColumnLayout {
             spacing: 14
-            Text { Layout.fillWidth: true; text: "Save your video edits?"; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium; wrapMode: Text.Wrap }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Save your video edits?"; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium; wrapMode: Text.Wrap }
             Text {
+                textFormat: Text.PlainText
                 Layout.fillWidth: true
                 text: "Your changes to " + video.name + " haven't been saved. Save them before continuing, or discard the edits. Your original video stays unchanged."
                 color: theme.muted
@@ -362,7 +363,7 @@ ApplicationWindow {
                 wrapMode: Text.Wrap
                 lineHeight: 1.25
             }
-            Text { Layout.fillWidth: true; visible: text.length > 0; text: leaveDialog.saveError; color: theme.urgent; font.pixelSize: 12; wrapMode: Text.Wrap }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; visible: text.length > 0; text: leaveDialog.saveError; color: theme.urgent; font.pixelSize: 12; wrapMode: Text.Wrap }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -374,6 +375,7 @@ ApplicationWindow {
         }
     }
     component SectionLabel: Text {
+        textFormat: Text.PlainText
         color: theme.muted
         font.family: theme.fontFamily
         font.pixelSize: 10
@@ -396,6 +398,7 @@ ApplicationWindow {
                 spacing: 2
                 Layout.fillWidth: true
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     text: action.text
                     color: action.ink
@@ -404,6 +407,7 @@ ApplicationWindow {
                     font.weight: action.primary ? Font.DemiBold : Font.Normal
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: text.length > 0
                     text: action.detail
@@ -471,6 +475,7 @@ ApplicationWindow {
                 onClicked: { captureMenu.close(); root.requestNavigation("screen"); }
             }
             Text {
+                textFormat: Text.PlainText
                 text: "The screen freezes while you choose."
                 font.pixelSize: 11
                 font.family: theme.fontFamily
@@ -513,7 +518,7 @@ ApplicationWindow {
                     spacing: 14
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { Layout.fillWidth: true; text: "Settings"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 17; font.weight: Font.Medium }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Settings"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 17; font.weight: Font.Medium }
                         StudioButton { glyph: "close"; quiet: true; implicitHeight: 30; hint: "Close Settings · Esc"; onClicked: settingsPopup.close() }
                     }
                     SectionLabel { text: "SHORTCUTS" }
@@ -533,8 +538,8 @@ ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                Text { text: modelData.label; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
-                                Text { Layout.fillWidth: true; text: root.home(modelData.path); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; elide: Text.ElideMiddle }
+                                Text { textFormat: Text.PlainText; text: modelData.label; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 12 }
+                                Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: root.home(modelData.path); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; elide: Text.ElideMiddle }
                             }
                             StudioButton {
                                 text: "Change"
@@ -563,6 +568,7 @@ ApplicationWindow {
                         onToggled: studio.keepOriginals = checked
                     }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: "These copies can include anything you redacted. They stay in " + root.home(studio.originalsFolder) + " until you delete them. " + studio.originalsSummary
                         color: theme.muted
@@ -578,6 +584,7 @@ ApplicationWindow {
                         onClicked: { settingsPopup.close(); originalsDialog.open(); }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         Layout.topMargin: 4
                         text: "Framelet " + Qt.application.version + " · Everything stays on this computer. No accounts, uploads or telemetry."
@@ -623,12 +630,14 @@ ApplicationWindow {
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText
                     text: "omaframe"
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: theme.text
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.leftMargin: 6
                     visible: !root.narrow
                     text: root.videoMode ? (root.recordingReview ? "Review recording" : "Edit video") : studio.hasImage ? (root.editing ? "Edit screenshot" : "Choose a finish") : ""
@@ -725,12 +734,12 @@ ApplicationWindow {
                             color: "transparent"
                             border.width: 1
                             border.color: theme.controlBorder
-                            Text { id: keyLabel; anchors.centerIn: parent; text: card.key; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
+                            Text { textFormat: Text.PlainText; id: keyLabel; anchors.centerIn: parent; text: card.key; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
                         }
                     }
                     Item { Layout.fillHeight: true }
-                    Text { text: card.title; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 15; font.weight: Font.Medium }
-                    Text { Layout.fillWidth: true; text: card.detail; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
+                    Text { textFormat: Text.PlainText; text: card.title; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 15; font.weight: Font.Medium }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: card.detail; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11; wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight }
                 }
                 MouseArea {
                     id: cardMouse
@@ -749,8 +758,9 @@ ApplicationWindow {
                 spacing: 20
                 ColumnLayout {
                     spacing: 6
-                    Text { text: studio.welcomed ? "What would you like to capture?" : "Welcome to Framelet"; color: theme.text; font.pixelSize: 24; font.weight: Font.Medium }
+                    Text { textFormat: Text.PlainText; text: studio.welcomed ? "What would you like to capture?" : "Welcome to Framelet"; color: theme.text; font.pixelSize: 24; font.weight: Font.Medium }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: "Screenshots and screen recordings for Omarchy. Everything stays on this computer."
                         color: theme.muted
@@ -788,6 +798,7 @@ ApplicationWindow {
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: text.length > 0 && text !== "Ready when you are."
                     text: root.operationStatus
@@ -809,7 +820,7 @@ ApplicationWindow {
                         anchors.fill: parent
                         anchors.margins: 18
                         spacing: 10
-                        Text { text: "How it works"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
+                        Text { textFormat: Text.PlainText; text: "How it works"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
                         Repeater {
                             model: [
                                 "Choose Screenshot, then click a window or drag an area. Whole display captures everything on that screen.",
@@ -825,9 +836,9 @@ ApplicationWindow {
                                     Layout.alignment: Qt.AlignTop
                                     width: 22; height: 22; radius: theme.radius
                                     color: theme.selectedFill
-                                    Text { anchors.centerIn: parent; text: index + 1; color: theme.selectedText; font.pixelSize: 11 }
+                                    Text { textFormat: Text.PlainText; anchors.centerIn: parent; text: index + 1; color: theme.selectedText; font.pixelSize: 11 }
                                 }
-                                Text { Layout.fillWidth: true; text: modelData; color: theme.text; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.2 }
+                                Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: modelData; color: theme.text; font.pixelSize: 12; wrapMode: Text.Wrap; lineHeight: 1.2 }
                             }
                         }
                         StudioButton {
@@ -851,7 +862,7 @@ ApplicationWindow {
                         anchors.fill: parent
                         anchors.margins: 18
                         spacing: 10
-                        Text { text: "Optional shortcuts"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
+                        Text { textFormat: Text.PlainText; text: "Optional shortcuts"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
                         ShortcutPanel { Layout.fillWidth: true }
                     }
                 }
@@ -912,8 +923,9 @@ ApplicationWindow {
                                     ColumnLayout {
                                         Layout.fillWidth: true
                                         spacing: 2
-                                        Text { Layout.fillWidth: true; text: draftCard.modelData.name; color: theme.text; font.pixelSize: 12; elide: Text.ElideMiddle }
+                                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: draftCard.modelData.name; color: theme.text; font.pixelSize: 12; elide: Text.ElideMiddle }
                                         Text {
+                                            textFormat: Text.PlainText
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
                                             text: (draftCard.modelData.kind === "video" ? "Video · " : "") + draftCard.modelData.when + (draftCard.modelData.kind === "video" ? "" : " · " + draftCard.modelData.edits + (draftCard.modelData.edits === 1 ? " edit" : " edits")) + (draftCard.modelData.exported ? " · exported" : "")
@@ -937,6 +949,7 @@ ApplicationWindow {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true
                         text: "Image drafts keep a private original. Video drafts keep edits and refer to the original video; keep that file in place. Delete drafts when you are done."
                         color: theme.faint
@@ -1004,8 +1017,8 @@ ApplicationWindow {
                         Layout.minimumWidth: 0
                         Layout.maximumWidth: 260
                         spacing: 2
-                        Text { Layout.fillWidth: true; text: studio.name; elide: Text.ElideMiddle; color: theme.text; font.pixelSize: 12 }
-                        Text { text: studio.dimensions; color: theme.faint; font.pixelSize: 10 }
+                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: studio.name; elide: Text.ElideMiddle; color: theme.text; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; text: studio.dimensions; color: theme.faint; font.pixelSize: 10 }
                     }
                     Rectangle {
                         visible: studio.demo && !root.narrow
@@ -1014,6 +1027,7 @@ ApplicationWindow {
                         radius: theme.radius
                         color: theme.selectedFill
                         Text {
+                            textFormat: Text.PlainText
                             anchors.centerIn: parent
                             text: "SAMPLE"
                             font.pixelSize: 9
@@ -1042,6 +1056,7 @@ ApplicationWindow {
                         onClicked: studio.marks.redo()
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: !root.editing
                         text: studio.style === 8 ? "RAW" : studio.styles[studio.style].toUpperCase()
                         font.pixelSize: 10
@@ -1154,6 +1169,7 @@ ApplicationWindow {
                     }
                 }
                 Text {
+                    textFormat: Text.PlainText
                     Layout.fillWidth: true
                     horizontalAlignment: Text.AlignHCenter
                     visible: !root.editing || markCanvas.typing
@@ -1215,8 +1231,8 @@ ApplicationWindow {
                                     contentItem: RowLayout {
                                         spacing: 8
                                         Glyph { name: toolButton.glyph; ink: toolButton.ink; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
-                                        Text { text: toolButton.text; color: toolButton.ink; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
-                                        Text { visible: !root.narrow; text: toolButton.modelData.shortcut; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 10 }
+                                        Text { textFormat: Text.PlainText; text: toolButton.text; color: toolButton.ink; font.family: theme.fontFamily; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        Text { textFormat: Text.PlainText; visible: !root.narrow; text: toolButton.modelData.shortcut; color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 10 }
                                     }
                                 }
                             }
@@ -1272,7 +1288,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 SectionLabel { text: "SELECTED " + (selectedInspector.names[selectedInspector.mark.type] || ""); Layout.fillWidth: true }
-                                Text { text: "Layer " + (selectedInspector.mark.layer || 0) + "/" + (selectedInspector.mark.layers || 0); color: theme.faint; font.pixelSize: 10 }
+                                Text { textFormat: Text.PlainText; text: "Layer " + (selectedInspector.mark.layer || 0) + "/" + (selectedInspector.mark.layers || 0); color: theme.faint; font.pixelSize: 10 }
                             }
                             StudioButton {
                                 visible: selectedInspector.mark.type === "text"
@@ -1296,6 +1312,7 @@ ApplicationWindow {
                                 StudioButton { text: "Forward"; quiet: true; Layout.fillWidth: true; implicitHeight: 32; hint: "Move this mark one layer forward"; enabled: !studio.busy && selectedInspector.mark.layer < selectedInspector.mark.layers; onClicked: studio.marks.moveSelectedLayer(1) }
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 visible: selectedInspector.mark.type === "redact"
                                 Layout.fillWidth: true
                                 text: "Redactions replace pixels with a solid fill and cannot be recolored."
@@ -1305,6 +1322,7 @@ ApplicationWindow {
                             }
                         }
                         Text {
+                            textFormat: Text.PlainText
                             visible: !selectedInspector.visible
                             Layout.leftMargin: 18
                             Layout.rightMargin: 18
@@ -1383,6 +1401,7 @@ ApplicationWindow {
                                         }
                                     }
                                     Text {
+                                        textFormat: Text.PlainText
                                         y: 74
                                         text: studio.styles[index]
                                         color: studio.style === index ? theme.selectedText : theme.muted
@@ -1434,8 +1453,8 @@ ApplicationWindow {
                             opacity: enabled ? 1 : 0.4
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Padding"; font.pixelSize: 12; color: theme.text; Layout.fillWidth: true }
-                                Text { text: Math.round(studio.padding * 100) + "%"; font.pixelSize: 11; color: theme.selectedText }
+                                Text { textFormat: Text.PlainText; text: "Padding"; font.pixelSize: 12; color: theme.text; Layout.fillWidth: true }
+                                Text { textFormat: Text.PlainText; text: Math.round(studio.padding * 100) + "%"; font.pixelSize: 11; color: theme.selectedText }
                             }
                             ThemedSlider {
                                 Layout.fillWidth: true
@@ -1448,7 +1467,7 @@ ApplicationWindow {
                             }
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Canvas"; font.pixelSize: 12; color: theme.text; Layout.fillWidth: true }
+                                Text { textFormat: Text.PlainText; text: "Canvas"; font.pixelSize: 12; color: theme.text; Layout.fillWidth: true }
                                 Choice {
                                     id: aspectChoice
                                     model: ["Auto", "Square", "16:9", "4:3", "9:16"]
@@ -1509,6 +1528,7 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     spacing: 6
                     Text {
+                        textFormat: Text.PlainText
                         id: statusLine
                         text: root.currentStatus
                         color: root.currentSaved.length ? theme.selectedText : theme.text
@@ -1534,6 +1554,7 @@ ApplicationWindow {
                             ink: theme.muted
                         }
                         Text {
+                            textFormat: Text.PlainText
                             text: root.home(root.currentDirectory)
                             color: theme.muted
                             font.pixelSize: 10
@@ -1587,13 +1608,15 @@ ApplicationWindow {
                         background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: 2; border.color: theme.frame }
                         contentItem: ColumnLayout {
                             spacing: 12
-                            Text { text: "Export GIF"; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
+                            Text { textFormat: Text.PlainText; text: "Export GIF"; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }
                             Text {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: "Loops without sound. Includes your edits. Up to 720 px at 15 fps."
                                 color: theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: videoPane.outputDuration > 30.000001 ? "Trim or cut this clip to 30 seconds or less."
                                     : "Clip length: " + videoPane.outputDuration.toFixed(1) + " seconds. GIFs can be larger than MP4."
@@ -1601,6 +1624,7 @@ ApplicationWindow {
                                 font.pixelSize: 12; wrapMode: Text.Wrap
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true; visible: gifMenu.current
                                 text: "Saved " + video.gifPath.split("/").pop() + "\n" + video.gifSummary
                                 color: theme.selectedText; font.pixelSize: 12; wrapMode: Text.Wrap

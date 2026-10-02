@@ -52,6 +52,7 @@ Button {
                 Layout.preferredHeight: 17
             }
             Text {
+                textFormat: Text.PlainText
                 visible: control.text.length > 0
                 text: control.text
                 color: control.ink

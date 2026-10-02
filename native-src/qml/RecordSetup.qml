@@ -63,13 +63,13 @@ Window {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 4
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: recorder.state === "failed" ? "Recording needs attention" : "Record your screen"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 19; font.weight: Font.Medium }
-                            Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: "Nothing starts until you choose what to record."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: recorder.state === "failed" ? "Recording needs attention" : "Record your screen"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 19; font.weight: Font.Medium }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: "Nothing starts until you choose what to record."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
                         StudioButton { glyph: "close"; quiet: true; hint: "Cancel · Esc"; onClicked: recorder.cancel() }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
-                    Text { text: "WHAT TO RECORD"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
+                    Text { textFormat: Text.PlainText; text: "WHAT TO RECORD"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
                     GridLayout {
                         Layout.fillWidth: true
                         columns: optionsScroll.availableWidth < 480 ? 1 : 2
@@ -95,6 +95,7 @@ Window {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: recorder.hasTarget && !recorder.targetLabel.startsWith("Entire")
                         text: recorder.targetLabel
                         color: theme.selectedText
@@ -104,7 +105,7 @@ Window {
                         elide: Text.ElideRight
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
-                    Text { text: "SOUND AND DETAILS"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
+                    Text { textFormat: Text.PlainText; text: "SOUND AND DETAILS"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
                     GridLayout {
                         Layout.fillWidth: true
                         columns: optionsScroll.availableWidth < 480 ? 1 : 2
@@ -115,7 +116,7 @@ Window {
                         RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Show the cursor"; checked: recorder.cursor; onToggled: recorder.cursor = checked }
                         RowLayout {
                             spacing: 8
-                            Text { text: "Countdown"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13 }
+                            Text { textFormat: Text.PlainText; text: "Countdown"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13 }
                             Choice {
                                 model: ["Off", "3 seconds", "5 seconds"]
                                 currentIndex: recorder.countdown === 0 ? 0 : recorder.countdown === 3 ? 1 : 2
@@ -133,6 +134,7 @@ Window {
                         displayText: currentIndex < 0 ? (recorder.microphones.length ? "Choose a microphone" : "No microphone found") : currentText
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: !recorder.desktopAudio && !recorder.micAudio
                         text: "The video will be silent."
                         color: theme.muted
@@ -165,15 +167,17 @@ Window {
                         visible: recorder.camera.enabled && recorder.camera.devices.length > 0
                         color: theme.well; radius: theme.radius; clip: true
                         VideoOutput { id: cameraPreview; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectFit }
-                        Text { anchors.centerIn: parent; visible: !recorder.camera.ready; text: "Starting camera…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !recorder.camera.ready; text: "Starting camera…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                     }
                     Binding { target: recorder.camera; property: "previewSink"; value: setup.visible && recorder.camera.enabled ? cameraPreview.videoSink : null }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true; visible: recorder.camera.enabled
                         text: recorder.camera.status; color: recorder.camera.ready ? theme.muted : theme.urgent
                         font.family: theme.fontFamily; font.pixelSize: 12; wrapMode: Text.Wrap
                     }
                     Text {
+                        textFormat: Text.PlainText
                         Layout.fillWidth: true; visible: recorder.camera.enabled && recorder.camera.ready
                         text: "Move, resize or hide the camera in the video review."
                         color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; wrapMode: Text.Wrap
@@ -194,6 +198,7 @@ Window {
                             anchors.margins: 13
                             spacing: 9
                             Text {
+                                textFormat: Text.PlainText
                                 Layout.fillWidth: true
                                 text: recorder.controlLocation
                                 color: recorder.needsStopShortcut ? theme.urgent : theme.text
@@ -211,6 +216,7 @@ Window {
                                 onClicked: shortcuts.setUpRecording()
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 visible: !recorder.stopShortcut && shortcuts.recordState === "custom"
                                 Layout.fillWidth: true
                                 text: "Alt+Print already runs something else. Bind any key to omaframe --record to use it here."
@@ -220,6 +226,7 @@ Window {
                                 wrapMode: Text.Wrap
                             }
                             Text {
+                                textFormat: Text.PlainText
                                 visible: shortcuts.message.length > 0 && !recorder.stopShortcut
                                 Layout.fillWidth: true
                                 text: shortcuts.message
@@ -231,6 +238,7 @@ Window {
                         }
                     }
                     Text {
+                        textFormat: Text.PlainText
                         visible: recorder.state === "failed" || (recorder.status.length > 0 && !recorder.needsStopShortcut && recorder.status !== "Ready to record." && recorder.status !== "Choose what to record.")
                         text: recorder.status
                         color: recorder.state === "failed" ? theme.urgent : theme.muted
@@ -248,7 +256,7 @@ Window {
                 anchors.bottom: parent.bottom
                 anchors.margins: setup.width < 500 ? 18 : 28
                 spacing: 10
-                Text { text: "60 fps · MP4 · saved in " + video.outputDirectory.replace(/^\/home\/[^/]+/, "~"); color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideMiddle }
+                Text { textFormat: Text.PlainText; text: "60 fps · MP4 · saved in " + video.outputDirectory.replace(/^\/home\/[^/]+/, "~"); color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideMiddle }
                 StudioButton {
                     Layout.alignment: Qt.AlignRight
                     Layout.fillWidth: optionsScroll.availableWidth < 480
