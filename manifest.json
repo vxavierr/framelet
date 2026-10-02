@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "vxavierr.framelet",
+  "name": "Framelet",
+  "version": "0.3.0",
+  "author": "vxavierr",
+  "license": "MIT",
+  "description": "A small atelier for screenshots. Capture, annotate and finish in one native overlay.",
+  "kinds": [
+    "overlay",
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "overlay": "Overlay.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "keepLoaded": true,
+  "barWidget": {
+    "displayName": "Framelet",
+    "category": "Capture",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

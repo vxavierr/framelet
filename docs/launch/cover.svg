@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <title>Framelet — an atelier for screenshots</title>
+  <desc>Editorial launch cover. Terracotta Framelet symbol, warm paper and a botanical illustration of three image prints.</desc>
+  <rect width="1600" height="1000" fill="#ede5d6"/>
+  <image x="700" y="156" width="870" height="650" xlink:href="atelier-illustration.png" preserveAspectRatio="xMidYMid meet"/>
+  <image x="82" y="77" width="64" height="64" xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0IiBmaWxsPSIjYzg3NTUzIj48dGl0bGU+RnJhbWVsZXQ8L3RpdGxlPjxwYXRoIGQ9Ik04IDI4VjhoMjB2N0gxNXYxM3oiLz48cGF0aCBkPSJNMzYgOGgyMHYxOEM1NiA0MCA0MSA1NiAyNSA1Nkg4VjM2aDd2MTNoMTBDNDAgNDkgNDkgMzkgNDkgMjZWMTVIMzZ6Ii8+PC9zdmc+Cg=="/>
+  <g font-family="DM Sans" fill="#22272d">
+    <text x="169" y="117" font-size="20" font-weight="600" letter-spacing="2">FOR OMARCHY</text>
+    <text x="88" y="426" font-size="40" font-weight="400">An atelier for</text>
+    <text x="88" y="566" font-size="24" fill="#6e675d">Select a detail. Mark what matters.</text>
+    <text x="88" y="604" font-size="24" fill="#6e675d">Give your screenshot a finish.</text>
+    <text x="1035" y="838" font-size="16" font-weight="500" letter-spacing="1.6" text-anchor="middle">SKETCHBOOK / INK / GALLERY</text>
+    <path d="M88 877H1512" stroke="#bfb4a3" stroke-width="1"/>
+    <text x="88" y="928" font-size="18" font-weight="500">Native capture · Inline annotations · Scrolling</text>
+    <text x="1512" y="928" font-size="18" text-anchor="end">OPEN SOURCE · MIT</text>
+  </g>
+  <g font-family="Fraunces" fill="#22272d">
+    <text x="80" y="332" font-size="116" font-weight="600" letter-spacing="-2">Framelet</text>
+    <text x="84" y="494" font-size="62" font-weight="450">screenshots.</text>
+  </g>
+  <g font-family="DM Sans" font-size="21" fill="#22272d">
+    <rect x="88" y="690" width="177" height="58" rx="8" fill="#e6ddce"/>
+    <text x="111" y="727" font-weight="600">Super + C</text>
+    <text x="284" y="727">Copy</text>
+    <rect x="88" y="766" width="177" height="58" rx="8" fill="#e6ddce"/>
+    <text x="111" y="803" font-weight="600">Super + S</text>
+    <text x="284" y="803">Save</text>
+  </g>
+</svg>

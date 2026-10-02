@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -uo pipefail
+plugin_dir="$(cd -- "$(dirname -- "$0")/.." && pwd)"
+export TMPDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/framelet/tmp"
+mkdir -p -- "$TMPDIR"
+export LD_LIBRARY_PATH="$plugin_dir/native/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+cleanup() {
+  if [[ "$(hyprctl submap 2>/dev/null)" == "framelet" ]]; then
+    hyprctl dispatch 'hl.dsp.submap("reset")' >/dev/null 2>&1
+  fi
+}
+trap cleanup EXIT
+if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
+  if ! "$plugin_dir/build.sh"; then
+    notify-send --app-name=Framelet "Framelet" "O motor precisa ser compilado. Veja build.sh e os requisitos no README." 2>/dev/null || true
+    exit 1
+  fi
+fi
+"$plugin_dir/native/capture-engine" "$@" &
+framelet_child=$!
+trap 'kill -TERM "$framelet_child" 2>/dev/null || true' TERM INT
+wait "$framelet_child"
+exit $?

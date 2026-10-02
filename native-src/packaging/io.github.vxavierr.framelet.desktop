@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Framelet
+Comment=Capture, annotate and create
+Exec=framelet --inline %f
+Icon=io.github.vxavierr.framelet
+Terminal=false
+Categories=Graphics;
+MimeType=image/png;image/jpeg;image/webp;
+Actions=Scroll;Code;
+
+[Desktop Action Scroll]
+Name=Scrolling capture
+Exec=framelet --scroll
+
+[Desktop Action Code]
+Name=Code card
+Exec=framelet --code

@@ -1,0 +1,2 @@
+# Retain bundled upstream font licence texts byte for byte, including CRLF.
+docs/launch/fonts/**/OFL.txt -whitespace

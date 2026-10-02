@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="900" height="600" viewBox="0 0 900 600">
+  <title>Framelet sample note</title>
+  <desc>Fictional sample content for screenshots of the running app, with generated botanical art.</desc>
+  <rect width="900" height="600" fill="#f8f5ef"/>
+  <g font-family="DM Sans" fill="#22272d">
+    <text x="45" y="49" font-size="13" font-weight="600" letter-spacing="2">FIELD NOTES</text>
+    <text x="855" y="49" font-size="13" text-anchor="end" fill="#777064">A LITTLE STUDY / 01</text>
+    <path d="M45 69H855" stroke="#d4ccbf" stroke-width="1"/>
+    <image x="45" y="106" width="432" height="393" xlink:href="atelier-illustration.png" preserveAspectRatio="xMidYMid slice"/>
+    <text x="515" y="145" font-size="12" fill="#7d846c" letter-spacing="1.6">MAKE THE DETAIL COUNT</text>
+    <text x="515" y="281" font-size="18" fill="#6e675d">A small mark can make a</text>
+    <text x="515" y="310" font-size="18" fill="#6e675d">screenshot easier to understand.</text>
+    <path d="M515 338H855" stroke="#d4ccbf"/>
+    <text x="515" y="379" font-size="17">01  Capture a detail</text>
+    <text x="515" y="425" font-size="17">02  Mark what matters</text>
+    <text x="515" y="471" font-size="17">03  Give it a finish</text>
+    <text x="45" y="551" font-size="12" fill="#777064">Sample content · Generated artwork · Real Framelet annotations</text>
+  </g>
+  <g font-family="Fraunces" font-size="40" fill="#22272d">
+    <text x="513" y="204">A note worth</text>
+    <text x="513" y="247">sharing.</text>
+  </g>
+</svg>
