@@ -150,4 +150,6 @@ Framelet is a fork of [Omaframe](https://github.com/btsouth/omaframe) 0.7.4 by T
 
 The Framelet brush, palettes, named finishes, overlay integration and original symbol are additions in this fork. The cover's botanical artwork was generated with OpenAI ImageGen; the interface screenshots and three finish examples come from the running app. Cover typography uses **Fraunces** and **DM Sans**, under the SIL Open Font License.
 
+The native Wayland capture code comes from [Omasnap](https://github.com/omacom/omasnap) through Omaframe. [ShareX](https://github.com/ShareX/ShareX) inspired the capture-and-annotate interaction; Omaframe also acknowledges [MatteShot](https://github.com/btsouth/matteshot) and [Omaroll](https://github.com/btsouth/omaroll) as workflow and style influences. All origins are detailed below.
+
 See [CREDITS.md](CREDITS.md), [LICENSE](LICENSE) and the retained [Omasnap licence](native-src/docs/OMASNAP-LICENSE). This project is an independent community plugin.
