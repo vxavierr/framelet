@@ -27,7 +27,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus
-    title: "Framelet — gravação"
+    title: "Framelet — recording"
     onClosing: function(event) {if(visible && recorder.active) {event.accepted=false;recorder.stop()}}
     readonly property bool live: recorder.state === "recording"
     readonly property bool paused: recorder.state === "paused"

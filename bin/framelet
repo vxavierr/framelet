@@ -12,7 +12,7 @@ cleanup() {
 trap cleanup EXIT
 if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
   if ! "$plugin_dir/build.sh"; then
-    notify-send --app-name=Framelet "Framelet" "O motor precisa ser compilado. Veja build.sh e os requisitos no README." 2>/dev/null || true
+    notify-send --app-name=Framelet "Framelet" "The capture engine needs to be built. See build.sh and the requirements in the README." 2>/dev/null || true
     exit 1
   fi
 fi
