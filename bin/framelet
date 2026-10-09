@@ -14,9 +14,22 @@ cleanup() {
   fi
 }
 trap cleanup EXIT
-if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
-  if ! "$plugin_dir/build.sh"; then
-    notify-send --app-name=Framelet "Framelet" "The capture engine needs to be built. See build.sh and the requirements in the README." 2>/dev/null || true
+portuguese=false
+if grep -qs '^language=pt' "${XDG_CONFIG_HOME:-$HOME/.config}/Framelet/Framelet.conf" ||
+   { ! grep -qs '^language=' "${XDG_CONFIG_HOME:-$HOME/.config}/Framelet/Framelet.conf" && [[ "${LANG:-}" == pt* ]]; }; then
+  portuguese=true
+fi
+say() { notify-send --app-name=Framelet "Framelet" "$($portuguese && printf '%s' "$2" || printf '%s' "$1")" 2>/dev/null || true; }
+# Build on first use, and again after an update changes the plugin version.
+expected="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$plugin_dir/manifest.json" | head -n 1)"
+built="$(cat "$plugin_dir/native/version" 2>/dev/null || true)"
+if [[ ! -x "$plugin_dir/native/capture-engine" || "$built" != "$expected" ]]; then
+  say "Building the capture engine for Framelet $expected. This can take a few minutes." \
+      "Compilando o motor do Framelet $expected. Isso pode levar alguns minutos."
+  # One build at a time; a second capture waits, then finds the engine ready.
+  if ! flock "$plugin_dir/.build.lock" nice -n 10 "$plugin_dir/build.sh" >"$TMPDIR/build.log" 2>&1; then
+    say "The capture engine needs to be built. See build.sh and the requirements in the README." \
+        "O motor precisa ser compilado. Veja build.sh e os requisitos no README."
     exit 1
   fi
 fi

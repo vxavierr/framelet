@@ -12,6 +12,7 @@
 - **From Omaframe 0.8.0–0.10.0:** editor zoom and pan, repeated crops, a movable capture bar, clipboard-only copies, mic and computer sound meters, the system file chooser, and fixes. Long strokes are resampled instead of cut at 2048 points, scrolling capture keeps at most 400 MiB of frames, partial covers no longer count as hiding a secret, orphaned FFmpeg exports are cleaned up, and a stuck recorder can be force-stopped.
 - Recording placement now recognises Framelet's own control windows, and the borderless Omarchy controls setting is respected.
 - CI builds the plugin in an Arch container and runs the headless suites on every pull request and tag.
+- **Updates rebuild the engine.** `build.sh` records the version it built, and the launcher rebuilds once (with a notification) when `omarchy plugin update` brings a new version, so the bar, overlay and engine never mismatch.
 
 New dependency: `libpulse` (sound meters). `qt6-imageformats` adds WebP.
 

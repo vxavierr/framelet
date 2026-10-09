@@ -10,4 +10,7 @@ cmake -S "$source_dir" -B "$build_dir" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUI
 cmake --build "$build_dir" --target omaframe -j 3
 mkdir -p -- "$framelet_dir/native"
 install -m755 "$build_dir/framelet" "$framelet_dir/native/capture-engine"
+# The launcher rebuilds when this stamp differs from the plugin version, so an
+# update through `omarchy plugin update` also updates the engine.
+sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$framelet_dir/manifest.json" | head -n 1 > "$framelet_dir/native/version"
 printf '%s\n' 'Framelet: engine built.'
