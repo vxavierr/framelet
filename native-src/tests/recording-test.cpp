@@ -1,14 +1,17 @@
 #include "recording.hpp"
+#include "audio-levels.hpp"
 #include "shortcuts.hpp"
 #include <QFile>
 #include <QDir>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QSettings>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QVideoFrame>
 #include <cstring>
 
 class RecordingTest:public QObject {
@@ -56,8 +59,8 @@ fi
    executable("pactl",R"(#!/bin/sh
 case "$1" in
 get-default-source) echo clean_desktop_microphone;;
-get-default-sink) if [ -z "$OMAFRAME_TEST_NO_SINK" ]; then echo speakers; fi;;
-*) echo '[{"name":"clean_desktop_microphone","description":"Clean microphone"}]';;
+get-default-sink) if [ -n "$OMAFRAME_TEST_SINK" ]; then echo "$OMAFRAME_TEST_SINK"; elif [ -z "$OMAFRAME_TEST_NO_SINK" ]; then echo speakers; fi;;
+*) if [ "$4" = sinks ] && [ -n "$OMAFRAME_TEST_SINKS" ]; then cat "$OMAFRAME_TEST_SINKS"; elif [ "$4" = sinks ]; then printf '[{"name":"speakers","description":"Speakers","monitor_source":"%s"}]\n' "${OMAFRAME_TEST_MONITOR:-actual_monitor}"; else echo '[{"name":"clean_desktop_microphone","description":"Clean microphone"}]'; fi;;
 esac
 )");
    executable("pgrep","#!/bin/sh\nexit 1\n");
@@ -70,12 +73,21 @@ if '--version' in sys.argv:
     print(os.environ.get('OMAFRAME_TEST_RECORDER_VERSION', '6.1.3'))
     sys.exit(0)
 path=sys.argv[sys.argv.index('-o')+1]
+open(path+'.args','w').write(json.dumps(sys.argv[1:]))
 if os.environ.get('OMAFRAME_TEST_HEADER_ONLY'):
     open(path,'wb').write(b'x'*88)
 else:
     shutil.copyfile(os.environ['OMAFRAME_TEST_FIXTURE'],path)
     open(path+'.ts','w').write('monotonic_microsec\trealtime_microsec\n123456\t123456\n')
-signal.signal(signal.SIGINT,lambda *_:sys.exit(0))
+die=os.environ.get('OMAFRAME_TEST_DIE')
+if die:
+    noise='gsr info: update fps: 61, damage fps: 60 '*30
+    sys.stderr.write(noise+('No space left on device' if die=='disk' else 'kms client shutdown')+'\n');sys.stderr.flush()
+    if die!='disk': open(path,'ab').write(b'\0'*70000)
+    time.sleep(.5)
+    if die=='kill': os.kill(os.getpid(),signal.SIGKILL)
+    sys.exit(1 if die=='disk' else 3)
+signal.signal(signal.SIGINT,signal.SIG_IGN if os.environ.get('OMAFRAME_TEST_STALL_STOP') else lambda *_:sys.exit(0))
 mode=os.environ.get('OMAFRAME_TEST_PAUSE_REPLY', 'ok')
 default_mode=mode
 server=socket.socket(socket.AF_UNIX)
@@ -194,12 +206,12 @@ while True:
    QVERIFY(!r.hasControl());QVERIFY(r.needsStopShortcut());QVERIFY(!r.canStart());
    QVERIFY(r.status().contains("stop shortcut"));
    r.setStopKey("Alt+Print");
-   QVERIFY(r.canStart());QVERIFY(r.controlLocation().contains("nothing from Omaframe is in the video"));
+   QVERIFY(r.canStart());QVERIFY(r.controlLocation().contains("nothing from Framelet is in the video"));
    qunsetenv("OMAFRAME_TEST_NO_STOP_BIND");
    // A pill counts down on the recorded display, then must be gone before
    // capture. While the stub still reports it over the display, launch waits
    // and then refuses.
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"omaframe-record-control","x":429,"y":40,"w":420,"h":48}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"framelet-record-control","x":429,"y":40,"w":420,"h":48}]}}})");
    QSignalSpy control(&r,&Recorder::controlRequested);
    r.setCountdown(1);r.start();
    QCOMPARE(control.count(),1);QVERIFY(r.countdownOnly());
@@ -215,7 +227,7 @@ while True:
  }
  void fullDisplayUsesUnrecordedMonitorWhenAvailable() {
    qputenv("OMAFRAME_TEST_DUAL_DISPLAY","1");
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"B":{"levels":{"3":[{"namespace":"omaframe-record-control","x":-248,"y":40,"w":232,"h":96}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"B":{"levels":{"3":[{"namespace":"framelet-record-control","x":-248,"y":40,"w":232,"h":96}]}}})");
    Recorder r;r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
    r.selectDisplay(0);
    QVERIFY(r.canStart());QVERIFY(r.safeStop());
@@ -361,16 +373,115 @@ while True:
    QCOMPARE(r.status(),QString("Choose what to record."));
    QVERIFY(!r.canStart());
  }
+ void stalledStopOffersForceStopAndKeepsPartialFile_data() {
+   QTest::addColumn<bool>("headerOnly");
+   QTest::newRow("readable-fixture")<<false;
+   QTest::newRow("small-partial")<<true;
+ }
+ void stalledStopOffersForceStopAndKeepsPartialFile() {
+   QFETCH(bool,headerOnly);
+   qputenv("OMAFRAME_TEST_STALL_STOP","1");
+   if(headerOnly)qputenv("OMAFRAME_TEST_HEADER_ONLY","1");
+   const auto cleanup=qScopeGuard([]{qunsetenv("OMAFRAME_TEST_STALL_STOP");qunsetenv("OMAFRAME_TEST_HEADER_ONLY");});
+   Recorder r(nullptr,100);QSignalSpy finished(&r,&Recorder::completed),setup(&r,&Recorder::setupRequested);
+   r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
+   r.selectDisplay(0);r.setCountdown(0);r.start();
+   if(headerOnly)QTRY_VERIFY_WITH_TIMEOUT(!r.savedPath().isEmpty()&&QFileInfo(r.savedPath()).size()==88,5000);
+   else QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("recording"),5000);
+   const QString path=r.savedPath();const qint64 size=QFileInfo(path).size();
+   const int before=setup.count();
+   r.stop();QCOMPARE(r.state(),QString("stopping"));QVERIFY(!r.canForceStop());
+   r.stop();QCOMPARE(r.state(),QString("stopping"));QVERIFY(r.active());
+   QTRY_VERIFY(r.canForceStop());QCOMPARE(setup.count(),before+1);
+   QVERIFY(r.status().contains("Still finishing"));QVERIFY(r.status().contains("may be incomplete"));
+   r.stop();QTRY_COMPARE(r.state(),QString("idle"));
+   QVERIFY(!r.active());QVERIFY(!r.canForceStop());QVERIFY(finished.isEmpty());
+   QVERIFY(r.status().contains("has not been checked"));
+   QVERIFY(r.savedPath().endsWith("-incomplete.mp4"));
+   QVERIFY(r.status().endsWith("The partial recording was kept as "+QFileInfo(r.savedPath()).fileName()+"."));
+   QVERIFY(!r.status().contains(".part"));QVERIFY(!r.status().contains("/"));
+   QVERIFY(!QFileInfo::exists(path));QCOMPARE(QFileInfo(r.savedPath()).size(),size);
+ }
+ void cameraUnavailableAtLaunchIsReportedThroughCompletion() {
+   QSettings().setValue("record/cameraDevice",QByteArray("missing-camera"));
+   const auto cleanup=qScopeGuard([]{QSettings().remove("record/cameraDevice");});
+   Recorder r;QSignalSpy finished(&r,&Recorder::completed);
+   r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
+   r.selectDisplay(0);r.setCountdown(1);r.start();QCOMPARE(r.state(),QString("countdown"));
+   // An enabled camera with no live frame at launch must not disappear silently.
+   r.camera()->setEnabled(true);QVERIFY(!r.camera()->ready());
+   QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("recording"),5000);
+   QVERIFY(r.status().contains("camera unavailable"));
+   QVERIFY(r.status().contains("screen-only"));
+   r.stop();QTRY_COMPARE_WITH_TIMEOUT(finished.count(),1,5000);
+   QCOMPARE(r.state(),QString("saved"));QVERIFY(r.status().contains("camera was not recorded"));
+   QFile sidecar(r.savedPath()+".camera.json");QVERIFY(sidecar.open(QIODevice::ReadOnly));
+   QVERIFY(QJsonDocument::fromJson(sidecar.readAll()).object().value("missing").toBool());
+ }
+ void preferredCameraNeverFallsBackToAnotherDevice() {
+   const QVariantList devices{QVariantMap{{"id",QByteArray("other")}},QVariantMap{{"id",QByteArray("preferred")}}};
+   QCOMPARE(CameraDevices::preferredIndex(devices,{}),0);
+   QCOMPARE(CameraDevices::preferredIndex({},{}),-1);
+   QCOMPARE(CameraDevices::preferredIndex(devices,"preferred"),1);
+   QCOMPARE(CameraDevices::preferredIndex(devices,"disconnected"),-1);
+   QSettings().setValue("record/cameraDevice",QByteArray("disconnected"));
+   const auto cleanup=qScopeGuard([]{QSettings().remove("record/cameraDevice");});
+   Webcam camera;camera.refresh();camera.setEnabled(true);
+   QCOMPARE(camera.device(),-1);QVERIFY(camera.unavailable());QVERIFY(!camera.ready());
+   QVERIFY(camera.status().contains("selected camera is not connected"));
+   QVERIFY(!camera.startTrack(temp.filePath("not-recorded.mp4"),[]{return qint64(0);}));
+   QVERIFY(camera.status().contains("screen recording continues"));
+   QVERIFY(!camera.finishing());QVERIFY(!QFileInfo::exists(temp.filePath("not-recorded.mp4")));
+ }
+ void capturedPactlMonitorIsSharedByRecordingAndMeter() {
+   const QByteArray sink="alsa_output.pci-0000_00_1f.3.analog-stereo";
+   QFile sinks(temp.filePath("sinks.json"));QVERIFY(sinks.open(QIODevice::WriteOnly));
+   sinks.write(R"([{"index":0,"name":"alsa_output.pci-0000_00_1f.3.analog-stereo","description":"Built-in Audio Analog Stereo","state":"RUNNING","sample_specification":"s32le 2ch 48000Hz","monitor_source":"alsa_output.pci-0000_00_1f.3.analog-stereo.monitor","driver":"PipeWire","mute":false,"properties":{"device.api":"alsa"}}])");sinks.close();
+   qputenv("OMAFRAME_TEST_SINK",sink);qputenv("OMAFRAME_TEST_SINKS",sinks.fileName().toUtf8());
+   const auto cleanup=qScopeGuard([]{qunsetenv("OMAFRAME_TEST_SINK");qunsetenv("OMAFRAME_TEST_SINKS");});
+   Recorder r;r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
+   const QString monitor=QString::fromUtf8(sink)+".monitor";
+   QCOMPARE(r.audioPreview().sound,monitor);
+   r.selectDisplay(0);r.setCountdown(0);r.setMicAudio(false);r.setDesktopAudio(true);r.start();
+   QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("recording"),5000);
+   QCOMPARE(r.audioSession().sound,monitor);
+   AudioLevels levels;levels.configure(r.audioPreview(),r.audioSession(),r.state(),false,true);
+   levels.setSurface("control","control",true);
+   QCOMPARE(levels.sound()["source"].toString(),monitor);
+   QFile invocation(r.savedPath()+".args");QVERIFY(invocation.open(QIODevice::ReadOnly));
+   const auto args=QJsonDocument::fromJson(invocation.readAll()).array().toVariantList();
+   QCOMPARE(args.value(args.indexOf(QString("-a"))+1).toString(),monitor);
+   r.stop();QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("saved"),5000);
+ }
  void ownProcessStopsThenHandsOffValidClip() {
    Recorder r;QSignalSpy finished(&r,&Recorder::completed);
    r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
    QCOMPARE(r.microphone(),0);r.selectDisplay(0);QVERIFY(!r.safeStop());QCOMPARE(r.stopKey(),QString("Alt+Print"));
+   QCOMPARE(r.audioPreview().sound,QString("actual_monitor"));
+   qputenv("OMAFRAME_TEST_MONITOR","launch_monitor");
+   const auto monitorCleanup=qScopeGuard([]{qunsetenv("OMAFRAME_TEST_MONITOR");});
    r.setCountdown(0);r.setMicAudio(true);r.setDesktopAudio(true);r.start();
    QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("recording"),5000);
    QVERIFY(r.active());QVERIFY(finished.isEmpty());
+   const auto hidden = r.savedPath();
+   QVERIFY(QFileInfo(hidden).fileName().startsWith('.'));
+   QVERIFY(hidden.endsWith(".part.mp4"));
+   QCOMPARE(r.audioSession().sound,QString("launch_monitor"));
+   qputenv("OMAFRAME_TEST_MONITOR","later_default");
+   QCOMPARE(r.audioSession().sound,QString("launch_monitor"));
+   QCOMPARE(r.audioSession().mic,QString("clean_desktop_microphone"));
+   QFile invocation(r.savedPath()+".args");QVERIFY(invocation.open(QIODevice::ReadOnly));
+   const auto args=QJsonDocument::fromJson(invocation.readAll()).array().toVariantList();
+   QCOMPARE(args.value(args.indexOf(QString("-a"))+1).toString(),r.audioSession().sound+"|"+r.audioSession().mic);
+   QCOMPARE(args.value(args.indexOf(QString("-o"))+1).toString(),hidden);
    r.stop();QTRY_COMPARE_WITH_TIMEOUT(finished.count(),1,5000);
    QCOMPARE(r.state(),QString("saved"));QVERIFY(!r.active());
+   QCOMPARE(r.audioSession().sound,QString("launch_monitor"));
+   QCOMPARE(r.audioSession().mic,QString("clean_desktop_microphone"));
    QVERIFY(QFileInfo::exists(r.savedPath()));
+   QVERIFY(!QFileInfo::exists(hidden));
+   QVERIFY(QFileInfo(r.savedPath()).fileName().startsWith("Recording-"));
+   QVERIFY(!r.savedPath().contains(".part"));
    QVERIFY(!QFileInfo::exists(r.savedPath()+".ts"));
    QVERIFY(!QFileInfo::exists(r.savedPath()+".cleaning.mp4"));
    QProcess audio;audio.start("ffmpeg",{"-v","error","-i",r.savedPath(),"-vn","-ac","1","-ar","8000","-f","f32le","pipe:1"});
@@ -508,6 +619,42 @@ while True:
    r.layoutChanged();QTRY_COMPARE_WITH_TIMEOUT(finished.count(),1,5000);
    QCOMPARE(r.state(),QString("saved"));
  }
+ void failureReasonsArePlainWords() {
+   using Recording::failureReason;
+   const auto normal=QProcess::NormalExit,crashed=QProcess::CrashExit;
+   QCOMPARE(failureReason(0,crashed,"gsr info: update fps: 61",false),QString("The recorder stopped unexpectedly."));
+   QCOMPARE(failureReason(3,normal,"",false),QString("The recorder stopped with an error (exit code 3)."));
+   QCOMPARE(failureReason(1,normal,"",true),QString("The recorder did not capture any video."));
+   QCOMPARE(failureReason(0,crashed,"",true),QString("The recorder did not capture any video."));
+   QCOMPARE(failureReason(1,normal,"write: No space left on device",false),QString("The disk is full."));
+   QVERIFY(failureReason(1,normal,"open: Permission denied",false).contains("not allowed"));
+   QCOMPARE(Recording::keptNote("/home/u/Omaframe/Recording-2026-10-05_10-00-00-abc123-incomplete.mp4"),
+            QString("The partial recording was kept as Recording-2026-10-05_10-00-00-abc123-incomplete.mp4."));
+   QVERIFY(!Recording::keptNote("/x/.Recording-1.part.mp4").contains("/"));
+ }
+ void recorderFailureShowsPlainMessageAndKeepsRawOutputOutOfIt_data() {
+   QTest::addColumn<QString>("mode");QTest::addColumn<QString>("reason");QTest::addColumn<bool>("kept");
+   QTest::newRow("killed")<<"kill"<<"The recorder stopped unexpectedly."<<true;
+   QTest::newRow("exit-code")<<"exit"<<"The recorder stopped with an error (exit code 3)."<<true;
+   QTest::newRow("disk-full-empty")<<"disk"<<"The disk is full. No file was kept."<<false;
+ }
+ void recorderFailureShowsPlainMessageAndKeepsRawOutputOutOfIt() {
+   QFETCH(QString,mode);QFETCH(QString,reason);QFETCH(bool,kept);
+   qputenv("OMAFRAME_TEST_DIE",mode.toUtf8());
+   const auto cleanup=qScopeGuard([]{qunsetenv("OMAFRAME_TEST_DIE");});
+   QTest::ignoreMessage(QtWarningMsg,QRegularExpression("Recorder failed"));
+   Recorder r;QSignalSpy finished(&r,&Recorder::completed);
+   r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
+   r.selectDisplay(0);r.setCountdown(0);r.start();
+   QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("failed"),8000);
+   QVERIFY(finished.isEmpty());
+   const QString status=r.status();
+   if(kept){
+     QVERIFY(r.savedPath().endsWith("-incomplete.mp4"));QVERIFY(QFileInfo::exists(r.savedPath()));
+     QCOMPARE(status,reason+" The partial recording was kept as "+QFileInfo(r.savedPath()).fileName()+".");
+   } else QCOMPARE(status,reason);
+   for(const char *raw:{"gsr","fps","kms","Recording failed",".part","/"})QVERIFY2(!status.contains(raw),raw);
+ }
  void headerOnlyRecordingNeverReportsReady() {
    Recorder r;QSignalSpy finished(&r,&Recorder::completed);
    r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
@@ -564,12 +711,12 @@ while True:
    QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("failed"),5000);
    QVERIFY(r.status().contains("did not appear"));QVERIFY(r.savedPath().isEmpty());
    // A control that ends up over the area is refused too.
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"omaframe-record-control","x":300,"y":300,"w":232,"h":96}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"framelet-record-control","x":300,"y":300,"w":232,"h":96}]}}})");
    r.regionSelected("A",QRectF(.1,.1,.5,.5));r.start();
    QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("failed"),5000);
    QVERIFY(r.status().contains("would be in the recording"));QVERIFY(r.savedPath().isEmpty());
    // The buttons alone are clear; the reserved hint row crosses the capture.
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"omaframe-record-control","x":331,"y":96,"w":232,"h":96}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"framelet-record-control","x":331,"y":96,"w":232,"h":96}]}}})");
    r.regionSelected("A",QRectF(.1,.2,.5,.5));r.start();
    QTRY_COMPARE_WITH_TIMEOUT(r.state(),QString("failed"),5000);
    QVERIFY(r.status().contains("would be in the recording"));QVERIFY(r.savedPath().isEmpty());
@@ -578,13 +725,24 @@ while True:
  void cancellationDuringCountdownDoesNotLaunch() {
    Recorder r;r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
    QSignalSpy dismissed(&r,&Recorder::dismissRequested);
-   r.selectDisplay(0);r.setCountdown(3);r.start();r.stop();
+   r.selectDisplay(0);r.setCountdown(3);r.start();
+   // A preview frame survives hiding its sink unless cancellation suspends
+   // the webcam. This fixture needs no physical camera.
+   QVideoSink preview;
+   r.camera()->setPreviewSink(&preview);
+   QImage frame(64,64,QImage::Format_RGB32);frame.fill(Qt::red);
+   preview.setVideoFrame(QVideoFrame(frame));
+   QVERIFY(preview.videoFrame().isValid());
+   r.stop();
    QCOMPARE(r.state(),QString("idle"));QVERIFY(r.savedPath().isEmpty());QVERIFY(!r.active());
    QCOMPARE(dismissed.count(),1);
+   QVERIFY(!preview.videoFrame().isValid());
+   r.reset(); // Returning to Studio must not reactivate or retain the preview.
+   QVERIFY(!preview.videoFrame().isValid());
    r.setCountdown(0);
  }
  void selectorChoicesMadeBeforeLoadingAreApplied() {
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"omaframe-record-control","x":331,"y":496,"w":232,"h":96}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"framelet-record-control","x":331,"y":496,"w":232,"h":96}]}}})");
    Recorder r;QSignalSpy setup(&r,&Recorder::setupRequested);
    r.setCountdown(0);r.prepare(false);QCOMPARE(r.state(),QString("loading"));
    r.regionSelected("A",QRectF(.1,.1,.5,.5),true);
@@ -599,7 +757,7 @@ while True:
    QCOMPARE(setup.count(),1);
  }
  void selectingRegionHidesSetupAndStartsRecording() {
-   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"omaframe-record-control","x":331,"y":496,"w":232,"h":96}]}}})");
+   qputenv("OMAFRAME_TEST_LAYERS",R"({"A":{"levels":{"3":[{"namespace":"framelet-record-control","x":331,"y":496,"w":232,"h":96}]}}})");
    Recorder r;r.prepare();QTRY_COMPARE(r.state(),QString("setup"));
    r.setCountdown(0);
    QSignalSpy hidden(&r,&Recorder::hideRequested);

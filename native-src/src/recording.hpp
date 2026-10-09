@@ -1,5 +1,6 @@
 #pragma once
 #include "webcam.hpp"
+#include "audio-levels.hpp"
 #include <QElapsedTimer>
 #include <QJsonArray>
 #include <QLocalSocket>
@@ -40,9 +41,22 @@ Placement placeStop(const QList<Display> &displays,
 Placement placeCountdown(const QList<Display> &displays,
                          const QString &capturedDisplay,
                          QSize size = {420, 48});
+/** A short plain reason for a recorder that ended without finishing its
+ *  file. The recorder's own output (`output`) only picks the wording of a few
+ *  known causes; it is never shown, and belongs in the log. */
+QString failureReason(int exitCode, QProcess::ExitStatus status,
+                      const QString &output, bool noFrames);
+/** The sentence that says where a kept recording is: its file name, never the
+ *  hidden part file or a long path. */
+QString keptNote(const QString &path);
+QString partPath(const QString &final);
+QString publishPart(const QString &part, const QString &final, bool incomplete);
+void recoverParts(const QString &folder, qint64 minimumAgeSeconds = 3600);
 QStringList arguments(const QString &target, const QString &path,
                       const QString &desktopSource, const QString &micSource,
                       bool cursor);
+QStringList arguments(const QString &target, const QString &path,
+                      const AudioSnapshot &audio, bool cursor);
 /** The program and arguments that start GPU Screen Recorder. It runs with
  *  the plain name `gpu-screen-recorder` as its command, which is what the
  *  Omarchy bar's recording icon looks for. QProcess alone would start it as
@@ -56,6 +70,7 @@ class Recorder final : public QObject {
   Q_PROPERTY(QString state READ state NOTIFY changed)
   Q_PROPERTY(QString status READ status NOTIFY changed)
   Q_PROPERTY(bool active READ active NOTIFY changed)
+  Q_PROPERTY(bool canForceStop READ canForceStop NOTIFY changed)
   Q_PROPERTY(QString elapsed READ elapsed NOTIFY changed)
   Q_PROPERTY(bool pausePending READ pausePending NOTIFY changed)
   Q_PROPERTY(int remaining READ remaining NOTIFY changed)
@@ -81,12 +96,15 @@ class Recorder final : public QObject {
   Q_PROPERTY(QString controlLocation READ controlLocation NOTIFY changed)
   Q_PROPERTY(QString savedPath READ savedPath NOTIFY changed)
 public:
-  explicit Recorder(QObject *parent = nullptr);
+  explicit Recorder(QObject *parent = nullptr, int stopGraceMs = 15000);
   Webcam *camera() { return &m_webcam; }
+  AudioSnapshot audioPreview() const;
+  AudioSnapshot audioSession() const { return m_audioSession; }
   ~Recorder() override;
   QString state() const { return m_state; }
   QString status() const { return m_status; }
   bool active() const;
+  bool canForceStop() const { return m_canForceStop; }
   QString elapsed() const;
   bool pausePending() const { return m_pausePending; }
   int remaining() const { return m_remaining; }
@@ -175,7 +193,11 @@ private:
   void freezeClock();
   void completeWhenCameraReady();
   Webcam m_webcam;
-  bool m_screenReady = false;
+  AudioSnapshot m_audioSession;
+  QString m_sinkLabel;
+  bool m_screenReady = false, m_incompleteReady = false;
+  QString m_finalPath;
+  bool m_canForceStop = false, m_forcedStop = false;
   QString m_cameraWarning;
   QString m_state = "idle", m_status, m_screen, m_target, m_path, m_error,
           m_defaultSink, m_preferredMic, m_stopKey, m_pauseKey;
@@ -184,7 +206,7 @@ private:
   Recording::Placement m_control, m_countdownControl;
   QRect m_capture;
   QProcess m_process;
-  QTimer m_tick, m_countdownTick, m_startupCheck;
+  QTimer m_tick, m_countdownTick, m_startupCheck, m_stopTimeout;
   QElapsedTimer m_clock;
   QLocalSocket m_pauseSocket;
   QTimer m_pauseTimeout;

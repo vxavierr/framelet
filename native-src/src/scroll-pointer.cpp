@@ -139,7 +139,7 @@ bool ScrollPointer::open(const QString &outputName, QString &error) {
     return false;
   }
   if (!state->manager || !state->seat) {
-    error = QStringLiteral("This compositor cannot scroll for Omaframe.");
+    error = QStringLiteral("This compositor cannot scroll for Framelet.");
     return false;
   }
   const std::string wanted = outputName.toStdString();

@@ -1,6 +1,7 @@
 #include "marks.hpp"
 #include "video.hpp"
 #include <QDir>
+#include <QDateTime>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -10,6 +11,7 @@
 #include <QScopeGuard>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -82,6 +84,40 @@ class VideoMarksTest : public QObject {
   }
 
 private slots:
+  void startupRemovesOnlyOldExportTemporaries() {
+    QTemporaryDir folder;
+    QVERIFY(folder.isValid());
+    const auto now = QDateTime::currentDateTimeUtc();
+    const QStringList oldExports{".Recording-2026-10-05-edited-a1b2c3.part.mp4",
+                                  ".clip-edited-2-abcdef.part.gif",
+                                  ".clip-edited-10-123abc.part.mp4"};
+    const QStringList unrelated{"clip-edited-abcdef.part.mp4", ".clip-abcdef.part.mp4",
+                                ".clip-edited-abcde.part.mp4", ".clip-edited-ABCDEF.part.mp4",
+                                ".clip-edited-1-abcdef.part.mp4", ".clip-edited-abcdef.part.mkv",
+                                ".clip-edited-abcdef.part.mp4.bak", ".clip-edited.mp4"};
+    const QString recent = ".clip-edited-112233.part.mp4";
+    const QString future = ".clip-edited-445566.part.gif";
+    for (const auto &name : oldExports + unrelated + QStringList{recent, future}) {
+      QFile file(folder.filePath(name));
+      QVERIFY(file.open(QIODevice::WriteOnly));
+      file.write("partial");
+      QVERIFY(file.flush());
+      QVERIFY(file.setFileTime(name == recent ? now.addSecs(-3590)
+                             : name == future ? now.addSecs(60) : now.addSecs(-3601),
+                              QFileDevice::FileModificationTime));
+    }
+    const QString link = folder.filePath(".link-edited-abcdef.part.mp4");
+    QVERIFY(QFile::link(folder.filePath(unrelated.first()), link));
+    const QString directory = folder.filePath(".folder-edited-abcdef.part.gif");
+    QVERIFY(QDir().mkpath(directory));
+    const QVariant previous = QSettings().value("videoDirectory");
+    const auto cleanup = qScopeGuard([&] { QSettings().setValue("videoDirectory", previous); });
+    QSettings().setValue("videoDirectory", folder.path());
+    Video video;
+    for (const auto &name : oldExports) QVERIFY(!QFileInfo::exists(folder.filePath(name)));
+    for (const auto &name : unrelated + QStringList{recent, future}) QVERIFY(QFileInfo::exists(folder.filePath(name)));
+    QVERIFY(QFileInfo(link).isSymLink());QVERIFY(QFileInfo(directory).isDir());
+  }
   void styledMarksMatchExportedVideo() {
     const auto cleanup = qScopeGuard([] { QSettings().remove("tools"); });
     QSettings().remove("tools");
@@ -268,6 +304,53 @@ private slots:
     for (const auto &draft : reopened.drafts())
       QVERIFY(draft.toMap().value("id").toString() != id);
   }
+  void hidingCameraIsEnoughToKeepADraft() {
+    const QString source = temp.filePath("hide-camera.mp4");
+    const QString camera = temp.filePath("hide-camera-webcam.mp4");
+    QVERIFY(QFile::copy(plain, source));
+    QVERIFY(QFile::copy(plain, camera));
+    QFile sidecar(source + ".camera.json");
+    QVERIFY(sidecar.open(QIODevice::WriteOnly));
+    const auto bytes =
+        QJsonDocument(QJsonObject{{"version", 1},
+                                  {"file", QFileInfo(camera).fileName()},
+                                  {"duration", 4.0}})
+            .toJson();
+    QCOMPARE(sidecar.write(bytes), bytes.size());
+    sidecar.close();
+
+    Video video;
+    video.open(QUrl::fromLocalFile(source));
+    QTRY_VERIFY_WITH_TIMEOUT(!video.busy(), 12000);
+    QCOMPARE(video.cameraSource(), QUrl::fromLocalFile(camera));
+    QVERIFY(video.cameraLayout().value("visible").toBool());
+    auto layout = video.cameraLayout();
+    layout["visible"] = false;
+    video.setCameraLayout(layout);
+    // No trims, cuts, mute, crop or marks: hiding the camera is the only edit.
+    video.setEditState({{"clipStart", 0.0},
+                        {"clipEnd", video.duration()},
+                        {"muted", false},
+                        {"cuts", QVariantList{}},
+                        {"signature", "camera-hidden"}});
+    QVERIFY(video.saveDraftNow());
+    QString id;
+    for (const auto &draft : video.drafts())
+      if (draft.toMap().value("name").toString() == "hide-camera.mp4")
+        id = draft.toMap().value("id").toString();
+    QVERIFY(!id.isEmpty());
+
+    Video reopened;
+    QSignalSpy loaded(&reopened, &Video::loaded);
+    reopened.resumeDraft(id);
+    QTRY_COMPARE_WITH_TIMEOUT(loaded.count(), 1, 12000);
+    QCOMPARE(reopened.cameraSource(), QUrl::fromLocalFile(camera));
+    QCOMPARE(reopened.cameraLayout(), layout);
+    QVERIFY(!reopened.cameraLayout().value("visible").toBool());
+    QCOMPARE(reopened.editState(), video.editState());
+    QVERIFY(reopened.marks()->edits().isEmpty());
+    reopened.deleteDraft(id);
+  }
   void changedOriginalDoesNotSilentlyRestoreDraft() {
     const QString source = temp.filePath("changed-original.mp4");
     QVERIFY(QFile::copy(plain, source));
@@ -300,6 +383,9 @@ private slots:
     QCoreApplication::setOrganizationName("Omaframe-test");
     QCoreApplication::setApplicationName("VideoMarks");
     QSettings().clear();
+    // Drafts from an earlier run would be found before this run's own.
+    QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation))
+        .removeRecursively();
     QVERIFY(temp.isValid());
     plain = temp.filePath("plain.mp4");
     pattern = temp.filePath("pattern.mp4");
@@ -464,6 +550,89 @@ private slots:
     QCOMPARE(still.selectedAnnotation().value("end").toDouble(), 0.);
     still.setSelectedTimes(1, 2);
     QCOMPARE(still.selectedAnnotation().value("start").toDouble(), 0.);
+  }
+
+  void copiedMarksPasteNearbyWithTheirTimes() {
+    MarkDocument marks;
+    QImage frame(320, 240, QImage::Format_ARGB32_Premultiplied);
+    frame.fill(Qt::transparent);
+    marks.reset(frame);
+    QVERIFY(!marks.copySelected()); // Nothing selected.
+    marks.paste();
+    QVERIFY(marks.edits().isEmpty());
+    marks.edit("arrow", 0.2, 0.2, 0.5, 0.4);
+    QVERIFY(marks.copySelected());
+    QVERIFY(marks.canPaste());
+    marks.paste();
+    marks.paste();
+    QCOMPARE(marks.edits().size(), 3);
+    // Same shape, each a step further from the last, and the last is selected.
+    for (const auto &edit : marks.edits())
+      QCOMPARE(edit.to - edit.from, marks.edits()[0].to - marks.edits()[0].from);
+    QVERIFY(marks.edits()[1].from.x() > marks.edits()[0].from.x());
+    QVERIFY(marks.edits()[2].from.x() > marks.edits()[1].from.x());
+    QCOMPARE(marks.selectedAnnotation().value("index").toInt(), 2);
+    marks.undo();
+    QCOMPARE(marks.edits().size(), 2);
+    // Cut is one undo step and keeps the copy.
+    marks.select(0);
+    marks.cutSelected();
+    QCOMPARE(marks.edits().size(), 1);
+    QVERIFY(marks.canPaste());
+    marks.undo();
+    QCOMPARE(marks.edits().size(), 2);
+    // A new image starts with nothing to paste.
+    marks.reset(frame);
+    QVERIFY(!marks.canPaste());
+
+    // On a video, a pasted mark starts at the playhead and keeps its length,
+    // but a blur keeps its times so it still covers what it hid.
+    MarkDocument video;
+    video.reset(frame);
+    video.setDuration(8);
+    video.setPlayhead(1);
+    video.edit("arrow", 0.2, 0.2, 0.5, 0.4);
+    video.setSelectedTimes(1, 3);
+    QVERIFY(video.copySelected());
+    video.setPlayhead(5);
+    video.paste();
+    QCOMPARE(video.selectedAnnotation().value("start").toDouble(), 5.);
+    QCOMPARE(video.selectedAnnotation().value("end").toDouble(), 7.);
+    video.setPlayhead(7.5);
+    video.paste();
+    QCOMPARE(video.selectedAnnotation().value("start").toDouble(), 7.5);
+    QCOMPARE(video.selectedAnnotation().value("end").toDouble(), 8.);
+    // A paste cut short by the end of the clip does not change the copy.
+    video.setPlayhead(2);
+    video.paste();
+    QCOMPARE(video.selectedAnnotation().value("start").toDouble(), 2.);
+    QCOMPARE(video.selectedAnnotation().value("end").toDouble(), 4.);
+    // A cover keeps its times, widened to the playhead so the paste shows.
+    video.edit("blur", 0.6, 0.6, 0.8, 0.8);
+    video.setSelectedTimes(1, 2);
+    QVERIFY(video.copySelected());
+    video.setPlayhead(1.5);
+    video.paste();
+    QCOMPARE(video.selectedAnnotation().value("start").toDouble(), 1.);
+    QCOMPARE(video.selectedAnnotation().value("end").toDouble(), 2.);
+    video.setPlayhead(5);
+    video.paste();
+    QCOMPARE(video.selectedAnnotation().value("start").toDouble(), 1.);
+    QCOMPARE(video.selectedAnnotation().value("end").toDouble(), 5.1);
+
+    // Near an edge, pastes step away from it instead of folding back onto
+    // the copy.
+    MarkDocument edge;
+    edge.reset(frame);
+    edge.edit("box", 0.9, 0.9, 0.99, 0.99);
+    QVERIFY(edge.copySelected());
+    for (int i = 0; i < 3; ++i)
+      edge.paste();
+    QCOMPARE(edge.edits().size(), 4);
+    for (int i = 1; i < 4; ++i) {
+      QVERIFY(edge.edits()[i].from.x() < edge.edits()[i - 1].from.x());
+      QVERIFY(edge.edits()[i].from.y() < edge.edits()[i - 1].from.y());
+    }
   }
 
   void rewordingALabelChangesTheMarks() {

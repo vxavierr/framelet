@@ -35,6 +35,7 @@ ApplicationWindow {
     palette.mid: theme.controlBorder
     palette.dark: theme.frame
     palette.shadow: theme.scrim
+    property bool historyMode: false
     property bool videoMode: false
     property bool recordingReview: false
     property bool editing: false
@@ -47,7 +48,7 @@ ApplicationWindow {
     readonly property bool videoSavedCurrent: videoLoaded && video.savedName.length > 0 && savedSignature === videoPane.signature
     readonly property bool typing: markCanvas.typing || videoPane.typing
     readonly property bool adjustingControl: root.activeFocusItem instanceof Slider || root.activeFocusItem instanceof ComboBox
-    property bool shortcutsAllowed: !markCanvas.dragging && !imageStyle.opened && !root.adjustingControl && !root.working && !gifMenu.opened && !videoPane.popupOpen && !leaveDialog.opened && !openDialog.visible && !imageFolderDialog.visible && !videoFolderDialog.visible && !originalsDialog.opened && !draftDeleteDialog.opened && !captureMenu.opened && !settingsPopup.opened && !aspectChoice.popup.visible && !typing
+    property bool shortcutsAllowed: !markCanvas.dragging && !imageStyle.opened && !root.adjustingControl && !root.working && !historyPane.popupOpen && !gifMenu.opened && !videoPane.popupOpen && !leaveDialog.opened && !openDialog.visible && !imageFolderDialog.visible && !videoFolderDialog.visible && !originalsDialog.opened && !draftDeleteDialog.opened && !captureMenu.opened && !settingsPopup.opened && !aspectChoice.popup.visible && !typing
     property bool working: navigation.saving || studio.busy || video.busy || (recorder.active && !studio.quickMode)
     property string operationStatus: ""
     property string currentStatus: operationStatus || (videoMode ? video.status : studio.status)
@@ -60,9 +61,14 @@ ApplicationWindow {
         if (draft.kind === "video") root.requestNavigation("video-draft", draft.id);
         else root.requestNavigation("image-draft", draft.id);
     }
-    function home(path) { return path.replace(/^\/home\/[^/]+/, "~") }
+    function home(path) { return filePicker.abbreviate(path) }
     function requestNavigation(command, file) {
-        if (studio.busy || video.busy || navigation.saving) return;
+        requestCaptureNavigation(command, file, -1);
+    }
+    function requestCaptureNavigation(command, file, delaySeconds) {
+        if (studio.busy || video.busy || navigation.saving || (command === "history" && recorder.active)) return;
+        studio.cancelTextCopy();
+        studio.cancelPendingAccept();
         if (markCanvas.typing) markCanvas.commitText();
         captureMenu.close();
         settingsPopup.close();
@@ -78,10 +84,12 @@ ApplicationWindow {
             videoPane.pause();
             videoPane.syncDraft();
             video.saveDraftNow();
-        }
-        navigation.request(command, file || "");
+        } else studio.saveDraftNow();
+        navigation.request(command, file || "", delaySeconds === undefined ? -1 : delaySeconds);
     }
-    Binding { target: navigation; property: "dirty"; value: root.videoLoaded && !root.videoUnchanged && !root.videoSavedCurrent && video.draftSignature !== videoPane.signature }
+    Binding { target: navigation; property: "dirty"; value: root.videoLoaded
+        ? !root.videoUnchanged && !root.videoSavedCurrent && video.draftSignature !== videoPane.signature
+        : studio.draftDirty }
     function acceptCurrent() {
         if (markCanvas.typing)
             markCanvas.commitText();
@@ -100,9 +108,35 @@ ApplicationWindow {
         else
             studio.accept();
     }
+    // A screenshot from the editor follows "Save screenshots automatically",
+    // like Enter in the finish chooser. Ctrl+S and "Copy and save" still save.
+    readonly property bool copyOnlyFinish: studio.quickMode && !root.videoMode && !studio.autoSaveScreenshots && !studio.recoveryAction.length
+    function finishCurrent() {
+        if (!root.copyOnlyFinish) {
+            root.acceptCurrent();
+            return;
+        }
+        if (markCanvas.typing)
+            markCanvas.commitText();
+        root.contentItem.forceActiveFocus();
+        studio.copyQuick();
+    }
+    // In the editor Ctrl+C, Ctrl+X and Ctrl+V work on marks, never on the
+    // screenshot, so they cannot close it.
+    function copyMark(cut) {
+        if (studio.marks.selectedAnnotation.type === undefined) {
+            root.operationStatus = "Select a mark to copy it. To finish the screenshot, press Ctrl+Enter or Ctrl+S.";
+            return;
+        }
+        if (cut) studio.marks.cutSelected();
+        else studio.marks.copySelected();
+        // The same note twice is not a status change, so show it here.
+        root.operationStatus = studio.status;
+    }
     // Escape peels one layer at a time: typing, a drag, the selection, the
     // tool, then Edit itself.
     function escapeEditor() {
+        studio.cancelPendingAccept();
         if (markCanvas.typing) markCanvas.commitText();
         else if (markCanvas.dragging) markCanvas.cancelDrag();
         else if (studio.marks.selectedAnnotation.type !== undefined) studio.marks.clearSelection();
@@ -111,6 +145,7 @@ ApplicationWindow {
         else root.editing = false;
     }
     function showFinish() {
+        studio.cancelPendingAccept();
         if (markCanvas.typing) markCanvas.commitText();
         if (studio.quickMode) studio.showFinishes();
         else root.editing = false;
@@ -124,15 +159,15 @@ ApplicationWindow {
         { key: "step", label: "Steps", shortcut: "N" }, { key: "text", label: "Text", shortcut: "T" }
     ]
     property string toolDescription: ({
-            select: "Drag a mark to move it; hold Shift to move straight. Drag side handles to resize width or height. Double-click a label to edit its words.",
-            crop: "Drag to crop, then move the frame or adjust its handles. Marks outside are kept. Press V when done.",
-            arrow: "Drag from the tail to the tip.",
-            line: "Drag to draw a line.",
-            box: "Drag to draw an outline box.",
-            ellipse: "Drag to draw an oval.",
-            highlight: "Drag across the part you want to stand out.",
-            redact: "Drag over private details. Their pixels are replaced in the saved image.",
-            blur: "Drag to soften an area. Use Redact for anything private.",
+            select: "Drag a mark to move it; hold Shift to move straight. Drag side handles to resize width or height. Double-click a label to edit its words. Ctrl+C and Ctrl+V copy and paste a mark.",
+            crop: "Drag over the area to keep. Crop again to trim it further, or press Ctrl+Z to undo a crop. Marks outside are kept.",
+            arrow: "Drag from the tail to the tip. Hold Shift for 45-degree angles.",
+            line: "Drag to draw a line. Hold Shift for 45-degree angles.",
+            box: "Drag to draw an outline box. Hold Shift for a square.",
+            ellipse: "Drag to draw an oval. Hold Shift for a circle.",
+            highlight: "Drag across the part you want to stand out. Hold Shift for a square.",
+            redact: "Drag over private details. Their pixels are replaced in the saved image. Hold Shift for a square.",
+            blur: "Drag to soften an area. Use Redact for anything private. Hold Shift for a square.",
             pen: "Draw freehand.",
             step: "Click to place the next number.",
             text: "Click to type a label. Drag sides for box size, corners for font size. Double-click to change its words."
@@ -149,7 +184,10 @@ ApplicationWindow {
         else { close.accepted = false; root.requestNavigation("quit"); }
     }
     Binding { target: studio; property: "editing"; value: root.editing && !root.videoMode && root.visible }
-    onEditingChanged: if (!editing && markCanvas.typing) markCanvas.commitText()
+    onEditingChanged: {
+        canvasArea.resetZoom();
+        if (!editing && markCanvas.typing) markCanvas.commitText();
+    }
     onToolChanged: {
         if (markCanvas.typing) markCanvas.commitText();
         if (tool !== "select") studio.marks.clearSelection();
@@ -164,12 +202,19 @@ ApplicationWindow {
                 root.operationStatus = studio.status;
             }
         }
-        function onEditorRequested() { root.editing = true; root.videoMode = false; root.tool = "select"; }
+        function onDraftSaveFailed() { navigation.request("finish-draft", ""); }
+        function onEditorRequested() { root.historyMode = false; root.editing = true; root.videoMode = false; root.tool = "select"; }
         function onSourceChanged() {
+            canvasArea.resetZoom();
+            preview.displayedCropBounds = Qt.rect(-1, -1, 0, 0);
             markCanvas.cancelText();
             root.editing = false;
             root.videoMode = false;
             root.tool = "select";
+            if (root.historyMode && studio.hasImage) {
+                root.historyMode = false;
+                root.editing = true;
+            }
         }
     }
     Connections {
@@ -183,6 +228,7 @@ ApplicationWindow {
             }
         }
         function onOpening() {
+            root.historyMode = false;
             root.videoMode = true;
             root.editing = false;
             root.recordingReview = false;
@@ -203,27 +249,56 @@ ApplicationWindow {
     }
     Connections {
         target: navigation
+        function onProceed(command, file) { if (command === "finish-draft") studio.finishDraftRecovery(); }
         function onConfirmationRequested() { leaveDialog.open(); }
         function onChanged() { if (!navigation.pending) leaveDialog.close(); }
         function onSaveRequested() {
             leaveDialog.close();
-            video.exportEdited(videoPane.clipStart, videoPane.clipEnd, videoPane.muted, videoPane.cuts);
+            if (root.videoLoaded)
+                video.exportEdited(videoPane.clipStart, videoPane.clipEnd, videoPane.muted, videoPane.cuts);
+            else if (studio.saveDraftNow()) navigation.saveSucceeded();
+            else {
+                leaveDialog.saveError = studio.status;
+                navigation.saveFailed();
+            }
         }
+    }
+    Shortcut {
+        sequence: "Ctrl+H"
+        enabled: root.shortcutsAllowed && !studio.quickMode
+        onActivated: root.requestNavigation("history")
     }
     Shortcut {
         sequence: "Ctrl+O"
         enabled: root.shortcutsAllowed && !root.working && !studio.quickMode
-        onActivated: openDialog.open()
+        onActivated: root.chooseFile()
     }
     Shortcut {
-        sequences: ["Ctrl+S", "Ctrl+Shift+C"]
+        sequence: "Ctrl+S"
         enabled: root.shortcutsAllowed && (root.videoMode || studio.hasImage)
         onActivated: root.acceptCurrent()
     }
     Shortcut {
+        sequences: ["Ctrl+Return", "Ctrl+Enter"]
+        enabled: root.shortcutsAllowed && !root.videoMode && studio.hasImage && !root.working
+        onActivated: root.finishCurrent()
+    }
+    Shortcut {
+        // Outside the editor the full studio has no marks to copy, so Ctrl+C
+        // copies and saves there as before. Quick captures never get here.
         sequence: "Ctrl+C"
         enabled: root.shortcutsAllowed && !root.videoMode && studio.hasImage && !root.working
-        onActivated: root.acceptCurrent()
+        onActivated: root.editing ? root.copyMark(false) : root.acceptCurrent()
+    }
+    Shortcut {
+        sequence: "Ctrl+X"
+        enabled: root.shortcutsAllowed && root.editing && !root.videoMode && !root.working
+        onActivated: root.copyMark(true)
+    }
+    Shortcut {
+        sequence: "Ctrl+V"
+        enabled: root.shortcutsAllowed && root.editing && !root.videoMode && !root.working && studio.marks.canPaste
+        onActivated: { root.tool = "select"; studio.marks.paste(); }
     }
     Shortcut {
         sequences: ["Return", "Enter"]
@@ -292,26 +367,42 @@ ApplicationWindow {
     Shortcut { sequence: "Shift+Up"; enabled: root.nudging; onActivated: studio.marks.nudgeSelected(0, -10) }
     Shortcut { sequence: "Shift+Down"; enabled: root.nudging; onActivated: studio.marks.nudgeSelected(0, 10) }
 
+    // The system's file chooser comes first. These Qt Quick dialogs only show
+    // when there is none.
     FileDialog {
         id: openDialog
         Component.onCompleted: if ("popupType" in openDialog) openDialog.popupType = Popup.Item
         title: "Open an image or recording"
-        nameFilters: ["Images and recordings (*.png *.jpg *.jpeg *.webp *.bmp *.avif *.heic *.mp4 *.webm *.mkv *.mov *.m4v *.avi)", "Images (*.png *.jpg *.jpeg *.webp *.bmp *.avif *.heic)", "Recordings (*.mp4 *.webm *.mkv *.mov *.m4v *.avi)"]
-        onAccepted: root.requestNavigation("open", selectedFile)
+        nameFilters: filePicker.nameFilters
+        onAccepted: { filePicker.rememberOpened(selectedFile); root.requestNavigation("open", selectedFile); }
     }
     FolderDialog {
         id: imageFolderDialog
         Component.onCompleted: if ("popupType" in imageFolderDialog) imageFolderDialog.popupType = Popup.Item
         title: "Save screenshots in"
-        currentFolder: "file://" + studio.outputDirectory
         onAccepted: studio.setOutputDirectory(selectedFolder)
     }
     FolderDialog {
         id: videoFolderDialog
         Component.onCompleted: if ("popupType" in videoFolderDialog) videoFolderDialog.popupType = Popup.Item
         title: "Save recordings and clips in"
-        currentFolder: "file://" + video.outputDirectory
         onAccepted: video.setOutputDirectory(selectedFolder)
+    }
+    function chooseFile() { filePicker.openMedia(root, root.videoMode) }
+    function chooseFolder(purpose) { filePicker.chooseFolder(root, purpose) }
+    Connections {
+        target: filePicker
+        function onFileChosen(file) { root.requestNavigation("open", file) }
+        function onFolderChosen(purpose, folder) {
+            if (purpose === "recordings") video.setOutputDirectory(folder)
+            else studio.setOutputDirectory(folder)
+        }
+        function onFallback(purpose) {
+            const dialog = purpose === "open" ? openDialog : purpose === "recordings" ? videoFolderDialog : imageFolderDialog
+            dialog.currentFolder = filePicker.startFolder(purpose, root.videoMode)
+            dialog.open()
+            filePicker.fitDialog(dialog, root)
+        }
     }
     ConfirmDialog {
         id: originalsDialog
@@ -353,11 +444,13 @@ ApplicationWindow {
         }
         contentItem: ColumnLayout {
             spacing: 14
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Save your video edits?"; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium; wrapMode: Text.Wrap }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: root.videoLoaded ? "Save your video edits?" : "Keep your screenshot edits?"; color: theme.text; font.pixelSize: 16; font.weight: Font.Medium; wrapMode: Text.Wrap }
             Text {
                 textFormat: Text.PlainText
                 Layout.fillWidth: true
-                text: "Your changes to " + video.name + " haven't been saved. Save them before continuing, or discard the edits. Your original video stays unchanged."
+                text: root.videoLoaded
+                    ? "Your changes to " + video.name + " haven't been saved. Save them before continuing, or discard the edits. Your original video stays unchanged."
+                    : "Your editable screenshot draft couldn't be saved. Retry before continuing, or discard the unsaved edits."
                 color: theme.muted
                 font.pixelSize: 12
                 wrapMode: Text.Wrap
@@ -369,8 +462,11 @@ ApplicationWindow {
                 spacing: 8
                 Item { Layout.fillWidth: true }
                 StudioButton { id: leaveCancel; text: "Cancel"; quiet: true; onClicked: navigation.cancel() }
-                StudioButton { text: "Discard edits"; danger: true; onClicked: navigation.discard() }
-                StudioButton { text: "Save and continue"; primary: true; onClicked: navigation.save() }
+                StudioButton { objectName: "discardUnsavedEdits"; text: "Discard edits"; danger: true; onClicked: {
+                    if (!root.videoLoaded) studio.discardUnsavedDraft();
+                    navigation.discard();
+                } }
+                StudioButton { text: root.videoLoaded ? "Save and continue" : "Retry and continue"; primary: true; onClicked: navigation.save() }
             }
         }
     }
@@ -545,16 +641,43 @@ ApplicationWindow {
                                 text: "Change"
                                 quiet: true
                                 implicitHeight: 30
-                                onClicked: { settingsPopup.close(); modelData.video ? videoFolderDialog.open() : imageFolderDialog.open(); }
+                                onClicked: { settingsPopup.close(); root.chooseFolder(modelData.video ? "recordings" : "screenshots"); }
                             }
                         }
+                    }
+                    Text { textFormat: Text.PlainText; visible: history.previousFolders.length > 0; text: "Previously used folders in History"; color: theme.muted; font.pixelSize: 12 }
+                    Repeater {
+                        model: history.previousFolders
+                        RowLayout {
+                            required property string modelData
+                            Layout.fillWidth: true
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: root.home(modelData); color: theme.muted; font.pixelSize: 11; elide: Text.ElideMiddle }
+                            StudioButton { text: "Forget"; quiet: true; implicitHeight: 30; hint: "Forget this previous folder. Current save folders are still scanned. Files stay in place."; onClicked: history.removeFolder(modelData) }
+                        }
+                    }
+                    RecordToggle {
+                        objectName: "autoSaveScreenshotsToggle"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Save screenshots automatically"
+                        checked: studio.autoSaveScreenshots
+                        onToggled: studio.autoSaveScreenshots = checked
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        text: "Using a finish, or Copy in the editor, copies the screenshot and saves a file. Turn this off to only copy. Copy and save always keeps a file, and Ctrl+C in the finish chooser copies without saving once."
+                        color: theme.muted
+                        font.family: theme.fontFamily
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
                     SectionLabel { text: "AFTER A CAPTURE IS COPIED" }
                     RecordToggle {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        text: "Show a notification with the save folder"
+                        text: "Show a notification after a capture is copied"
                         checked: notificationSetting.enabled
                         onToggled: notificationSetting.enabled = checked
                     }
@@ -570,7 +693,7 @@ ApplicationWindow {
                     Text {
                         textFormat: Text.PlainText
                         Layout.fillWidth: true
-                        text: "These copies can include anything you redacted. They stay in " + root.home(studio.originalsFolder) + " until you delete them. " + studio.originalsSummary
+                        text: "Kept only for captures you save. They can include anything you redacted and stay in " + root.home(studio.originalsFolder) + " until you delete them. Editable drafts are autosaved while you edit, even when automatic saving is off. " + studio.originalsSummary
                         color: theme.muted
                         font.family: theme.fontFamily
                         font.pixelSize: 11
@@ -631,7 +754,7 @@ ApplicationWindow {
                 }
                 Text {
                     textFormat: Text.PlainText
-                    text: "omaframe"
+                    text: "framelet"
                     font.pixelSize: 18
                     font.weight: Font.DemiBold
                     color: theme.text
@@ -651,8 +774,16 @@ ApplicationWindow {
                     glyph: "back"
                     quiet: true
                     enabled: !root.working
-                    hint: "Return to the start screen. Your edits stay in Recent edits."
+                    hint: "Return to the start screen. Your edits stay in History."
                     onClicked: root.requestNavigation("home")
+                }
+                StudioButton {
+                    visible: !studio.quickMode
+                    text: "History"
+                    quiet: true
+                    enabled: !root.working
+                    hint: "Saved captures and editable drafts · Ctrl+H"
+                    onClicked: root.requestNavigation("history")
                 }
                 StudioButton {
                     visible: !studio.quickMode
@@ -661,7 +792,7 @@ ApplicationWindow {
                     quiet: true
                     enabled: !root.working
                     hint: "Open an image or recording · Ctrl+O"
-                    onClicked: openDialog.open()
+                    onClicked: root.chooseFile()
                 }
                 StudioButton {
                     visible: !studio.quickMode
@@ -686,12 +817,26 @@ ApplicationWindow {
             }
         }
 
+        Loader {
+            id: historyPane
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.margins: 24
+            visible: active
+            active: root.historyMode
+            enabled: !root.working
+            readonly property bool popupOpen: item ? item.popupOpen : false
+            sourceComponent: Component {
+                HistoryPane { onHomeRequested: root.requestNavigation("home") }
+            }
+        }
+
         // Start screen: no image or video open.
         Flickable {
             id: startScreen
             Layout.fillWidth: true
             Layout.fillHeight: true
-            visible: !root.videoMode && !studio.hasImage
+            visible: !root.historyMode && !root.videoMode && !studio.hasImage
             clip: true
             contentWidth: width
             contentHeight: startColumn.implicitHeight + 64
@@ -794,7 +939,7 @@ ApplicationWindow {
                         detail: "Edit an image or trim a video. You can also drop a file here."
                         key: "Ctrl+O"
                         enabled: !root.working
-                        onActivated: openDialog.open()
+                        onActivated: root.chooseFile()
                     }
                 }
                 Text {
@@ -824,8 +969,9 @@ ApplicationWindow {
                         Repeater {
                             model: [
                                 "Choose Screenshot, then click a window or drag an area. Whole display captures everything on that screen.",
-                                "Click a finish to copy and save, or choose Edit to crop, hide details and add labels.",
-                                "Paste into a chat, document or folder. Find your files in " + root.home(studio.outputDirectory) + " and " + root.home(video.outputDirectory) + "."
+                                "Click a finish to select it. Press E to crop, hide details and add labels first.",
+                                "Double-click a finish, press its number or press Enter to copy it. With automatic saving on, the file is also saved. Ctrl+C or Clipboard copies without saving, and Esc cancels.",
+                                "Copy and save always keeps a file in " + root.home(studio.outputDirectory) + ". Paste into a chat, document or folder. Recordings are saved in " + root.home(video.outputDirectory) + "."
                             ]
                             RowLayout {
                                 required property string modelData
@@ -866,96 +1012,10 @@ ApplicationWindow {
                         ShortcutPanel { Layout.fillWidth: true }
                     }
                 }
-                ColumnLayout {
-                    visible: studio.drafts.length + video.drafts.length > 0
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
-                    SectionLabel { text: "RECENT EDITS" }
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: startColumn.width > 640 ? 2 : 1
-                        columnSpacing: 12
-                        rowSpacing: 8
-                        Repeater {
-                            model: root.recentDrafts
-                            delegate: Rectangle {
-                                id: draftCard
-                                required property var modelData
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 64
-                                radius: theme.radius
-                                color: draftMouse.containsMouse ? theme.hoverFill : theme.controlFill
-                                border.width: theme.controlBorder.a > 0 ? (activeFocus ? 2 : 1) : 0
-                                border.color: activeFocus ? theme.focusBorder : theme.controlBorder
-                                activeFocusOnTab: true
-                                Accessible.role: Accessible.Button
-                                enabled: !root.working
-                                Accessible.name: modelData.name + ". Resume edit"
-                                Accessible.onPressAction: root.resumeRecent(modelData)
-                                Keys.onReturnPressed: root.resumeRecent(modelData)
-                                Keys.onSpacePressed: root.resumeRecent(modelData)
-                                MouseArea {
-                                    id: draftMouse
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.resumeRecent(draftCard.modelData)
-                                }
-                                RowLayout {
-                                    anchors.fill: parent
-                                    anchors.margins: 8
-                                    spacing: 10
-                                    Rectangle {
-                                        Layout.preferredWidth: 72
-                                        Layout.fillHeight: true
-                                        radius: theme.radius
-                                        color: theme.well
-                                        clip: true
-                                        Image {
-                                            anchors.fill: parent
-                                            source: draftCard.modelData.image || ""
-                                            Glyph { anchors.centerIn: parent; visible: draftCard.modelData.kind === "video"; name: "record"; width: 24; height: 24; ink: theme.muted }
-                                            sourceSize.width: 144
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true
-                                        }
-                                    }
-                                    ColumnLayout {
-                                        Layout.fillWidth: true
-                                        spacing: 2
-                                        Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: draftCard.modelData.name; color: theme.text; font.pixelSize: 12; elide: Text.ElideMiddle }
-                                        Text {
-                                            textFormat: Text.PlainText
-                                            Layout.fillWidth: true
-                                            elide: Text.ElideRight
-                                            text: (draftCard.modelData.kind === "video" ? "Video · " : "") + draftCard.modelData.when + (draftCard.modelData.kind === "video" ? "" : " · " + draftCard.modelData.edits + (draftCard.modelData.edits === 1 ? " edit" : " edits")) + (draftCard.modelData.exported ? " · exported" : "")
-                                            color: theme.muted
-                                            font.pixelSize: 11
-                                        }
-                                    }
-                                    StudioButton {
-                                        glyph: "trash"
-                                        hint: "Delete this draft"
-                                        quiet: true
-                                        implicitHeight: 30
-                                        onClicked: {
-                                            draftDeleteDialog.videoDraft = draftCard.modelData.kind === "video";
-                                            draftDeleteDialog.draftId = draftCard.modelData.id;
-                                            draftDeleteDialog.open();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Text {
-                        textFormat: Text.PlainText
-                        Layout.fillWidth: true
-                        text: "Image drafts keep a private original. Video drafts keep edits and refer to the original video; keep that file in place. Delete drafts when you are done."
-                        color: theme.faint
-                        font.pixelSize: 11
-                        wrapMode: Text.Wrap
-                    }
+                    Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Recent captures and editable drafts are in History."; color: theme.muted; font.pixelSize: 12; wrapMode: Text.Wrap }
+                    StudioButton { text: "History"; quiet: true; onClicked: root.requestNavigation("history") }
                 }
                 StudioButton {
                     text: "Try the editor on a sample image"
@@ -1037,6 +1097,14 @@ ApplicationWindow {
                     Item { Layout.fillWidth: true }
                     StudioButton {
                         visible: root.editing
+                        text: canvasArea.zoom === 1 ? "Fit" : Math.round(canvasArea.zoom * 100) + "% · Fit"
+                        quiet: true
+                        implicitHeight: 34
+                        hint: "Reset zoom · Wheel to zoom, drag empty space with Select to pan, Shift+wheel to scroll"
+                        onClicked: canvasArea.resetZoom()
+                    }
+                    StudioButton {
+                        visible: root.editing
                         glyph: "undo"
                         text: root.narrow ? "" : "Undo"
                         quiet: true
@@ -1068,8 +1136,8 @@ ApplicationWindow {
                         quiet: true
                         implicitHeight: 34
                         enabled: !root.working
-                        hint: "Close this image. Editable drafts stay in Recent edits."
-                        onClicked: { markCanvas.cancelText(); studio.closeImage(); }
+                        hint: "Close this image. Editable drafts stay in History."
+                        onClicked: root.requestNavigation("home")
                     }
                 }
                 Rectangle {
@@ -1099,9 +1167,26 @@ ApplicationWindow {
                     }
                     Item {
                         id: canvasArea
-                        readonly property bool tallCanvas: root.editing && root.tool === "crop"
-                            ? studio.sourceSize.height > studio.sourceSize.width * 2
-                            : studio.tallImage
+                        property real zoom: 1
+                        function resetZoom() {
+                            zoom = 1;
+                            canvasScroll.contentX = 0;
+                            canvasScroll.contentY = 0;
+                        }
+                        function scrollTo(x, y) {
+                            canvasScroll.contentX = Math.max(0, Math.min(canvasScroll.contentWidth - canvasScroll.width, x));
+                            canvasScroll.contentY = Math.max(0, Math.min(canvasScroll.contentHeight - canvasScroll.height, y));
+                        }
+                        function zoomAt(delta, x, y) {
+                            const oldZoom = zoom;
+                            const nextZoom = Math.max(1, Math.min(8, zoom * Math.pow(1.2, delta / 120)));
+                            const ratio = nextZoom / oldZoom;
+                            const nextX = (canvasScroll.contentX + x) * ratio - x;
+                            const nextY = (canvasScroll.contentY + y) * ratio - y;
+                            zoom = nextZoom;
+                            scrollTo(nextX, nextY);
+                        }
+                        readonly property bool tallCanvas: studio.tallImage
                         anchors.fill: parent
                         anchors.margins: root.editing ? 16 : 26
                         clip: true
@@ -1109,47 +1194,112 @@ ApplicationWindow {
                         // Flickable, whose disabled input filtering also blocks
                         // handlers attached to it while annotation drags own input.
                         WheelHandler {
-                            enabled: root.editing && canvasArea.tallCanvas
+                            enabled: root.editing && !markCanvas.locked && !markCanvas.dragging
                             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                             target: null
                             onWheel: event => {
-                                const delta = event.pixelDelta.y || event.angleDelta.y / 120 * 80;
-                                canvasScroll.contentY = Math.max(0, Math.min(
-                                    canvasScroll.contentHeight - canvasScroll.height,
-                                    canvasScroll.contentY - delta));
+                                if (event.modifiers & Qt.ShiftModifier) {
+                                    const dx = event.pixelDelta.x || event.angleDelta.x / 120 * 80;
+                                    const dy = event.pixelDelta.y || event.angleDelta.y / 120 * 80;
+                                    canvasArea.scrollTo(canvasScroll.contentX - dx, canvasScroll.contentY - dy);
+                                } else {
+                                    const delta = event.angleDelta.y || event.pixelDelta.y * 2;
+                                    canvasArea.zoomAt(delta, event.x, event.y);
+                                }
                                 event.accepted = true;
                             }
+                        }
+                        MouseArea {
+                            id: panArea
+                            anchors.fill: parent
+                            z: 1
+                            anchors.rightMargin: 12
+                            anchors.bottomMargin: 12
+                            enabled: root.editing && !markCanvas.locked && !markCanvas.dragging
+                            readonly property bool selectPan: root.tool === "select" && canvasArea.zoom > 1
+                            function canPan(x, y) {
+                                const point = mapToItem(markCanvas, x, y);
+                                return markCanvas.canPanAt(point.x, point.y);
+                            }
+                            acceptedButtons: Qt.MiddleButton | (selectPan ? Qt.LeftButton : Qt.NoButton)
+                            hoverEnabled: true
+                            cursorShape: pressed ? Qt.ClosedHandCursor
+                                : selectPan && canPan(mouseX, mouseY) ? Qt.OpenHandCursor : markCanvas.cursorShape
+                            property real startX
+                            property real startY
+                            property real scrollX
+                            property real scrollY
+                            onPressed: mouse => {
+                                if (mouse.button === Qt.LeftButton && !canPan(mouse.x, mouse.y)) {
+                                    mouse.accepted = false;
+                                    return;
+                                }
+                                startX = mouse.x; startY = mouse.y;
+                                scrollX = canvasScroll.contentX; scrollY = canvasScroll.contentY;
+                            }
+                            onPositionChanged: mouse => {
+                                if (pressed) canvasArea.scrollTo(scrollX + startX - mouse.x, scrollY + startY - mouse.y);
+                                else {
+                                    const point = mapToItem(markCanvas, mouse.x, mouse.y);
+                                    markCanvas.updateHoverAt(point.x, point.y);
+                                }
+                            }
+                            onReleased: mouse => {
+                                if (mouse.button === Qt.LeftButton && Math.hypot(mouse.x - startX, mouse.y - startY) <= 3)
+                                    studio.marks.clearSelection();
+                            }
+                            onWheel: wheel => wheel.accepted = false
                         }
                         Flickable {
                             id: canvasScroll
                             anchors.fill: parent
                             clip: true
-                            contentWidth: width
+                            contentWidth: imageView.width
                             // A tall page is shown fit to width and scrolled, so a
                             // 20000 px capture stays readable and its annotations
                             // keep their place. Anything shorter fits as before.
                             contentHeight: imageView.height
                             boundsBehavior: Flickable.StopAtBounds
-                            // While editing, drags belong to the marks: scroll with
-                            // the wheel or the bar instead.
+                            // Mark drags stay in the canvas. The viewport handles
+                            // empty-space drags separately when Select is zoomed in.
                             interactive: !root.editing
                             ScrollBar.vertical: ScrollBar {
-                                policy: canvasArea.tallCanvas ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                                policy: root.editing ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                            }
+                            ScrollBar.horizontal: ScrollBar {
+                                policy: root.editing ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
                             }
                             Item {
                                 id: imageView
-                                width: canvasScroll.width
+                                width: canvasScroll.width * canvasArea.zoom
                                 height: canvasArea.tallCanvas && preview.implicitWidth > 0
-                                    ? Math.max(canvasScroll.height, canvasScroll.width * preview.implicitHeight / preview.implicitWidth)
-                                    : canvasScroll.height
+                                    ? Math.max(canvasScroll.height, canvasScroll.width * preview.implicitHeight / preview.implicitWidth) * canvasArea.zoom
+                                    : canvasScroll.height * canvasArea.zoom
                                 Image {
                                     id: preview
                                     anchors.fill: parent
-                                    source: studio.hasImage && studio.revision > 0 ? "image://frames/" + (root.editing ? (root.tool === "crop" ? "uncropped" : "source") : "preview") + "?" + studio.revision : ""
+                                    source: studio.hasImage && studio.revision > 0 ? "image://frames/" + (root.editing ? "source" : "preview") + "?" + studio.revision : ""
                                     fillMode: Image.PreserveAspectFit
                                     cache: false
                                     asynchronous: true
                                     retainWhileLoading: true
+                                    property rect requestedCropBounds
+                                    property rect displayedCropBounds: Qt.rect(-1, -1, 0, 0)
+                                    property bool requestedEditing: false
+                                    property bool displayedEditing: false
+                                    onSourceChanged: {
+                                        requestedCropBounds = studio.previewCropBounds;
+                                        requestedEditing = root.editing;
+                                    }
+                                    onStatusChanged: if (status === Image.Ready) {
+                                        displayedCropBounds = requestedCropBounds;
+                                        displayedEditing = requestedEditing;
+                                    }
+                                    readonly property bool geometryReady: displayedEditing === root.editing
+                                        && displayedCropBounds.x === studio.marks.cropBounds.x
+                                        && displayedCropBounds.y === studio.marks.cropBounds.y
+                                        && displayedCropBounds.width === studio.marks.cropBounds.width
+                                        && displayedCropBounds.height === studio.marks.cropBounds.height
                                 }
                                 MarkCanvas {
                                     id: markCanvas
@@ -1159,10 +1309,16 @@ ApplicationWindow {
                                     visible: root.editing
                                     doc: studio.marks
                                     tool: root.tool
-                                    locked: studio.busy
+                                    feedbackViewport: Qt.rect(canvasScroll.contentX - x, canvasScroll.contentY - y,
+                                                              canvasScroll.width, canvasScroll.height)
+                                    cropCurrentView: true
+                                    locked: studio.busy || !preview.geometryReady
                                     workingSize: studio.workingSize
                                     sourceSize: studio.sourceSize
-                                    onToolRequested: key => root.tool = key
+                                    onToolRequested: key => {
+                                        if (root.tool === "crop" && key === "select") canvasArea.resetZoom();
+                                        root.tool = key;
+                                    }
                                 }
                             }
                         }
@@ -1227,7 +1383,7 @@ ApplicationWindow {
                                     selected: root.tool === modelData.key
                                     quiet: !selected
                                     hint: modelData.label + " · " + modelData.shortcut
-                                    onClicked: root.tool = modelData.key
+                                    onClicked: root.tool = root.tool === modelData.key ? "select" : modelData.key
                                     contentItem: RowLayout {
                                         spacing: 8
                                         Glyph { name: toolButton.glyph; ink: toolButton.ink; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
@@ -1236,15 +1392,6 @@ ApplicationWindow {
                                     }
                                 }
                             }
-                        }
-                        StudioButton {
-                            visible: root.tool === "crop" && studio.marks.hasCrop
-                            Layout.leftMargin: 14
-                            Layout.rightMargin: 14
-                            Layout.fillWidth: true
-                            text: "Reset crop"
-                            quiet: true
-                            onClicked: studio.marks.clearCrop()
                         }
                         StudioButton {
                             visible: studio.secretCount > 0
@@ -1302,7 +1449,7 @@ ApplicationWindow {
                             RowLayout {
                                 Layout.fillWidth: true
                                 spacing: 4
-                                StudioButton { text: "Duplicate"; quiet: true; Layout.fillWidth: true; implicitHeight: 32; hint: "Ctrl+D"; enabled: !studio.busy; onClicked: studio.marks.duplicateSelected() }
+                                StudioButton { text: "Duplicate"; quiet: true; Layout.fillWidth: true; implicitHeight: 32; hint: "Ctrl+D. Ctrl+C and Ctrl+V copy and paste it"; enabled: !studio.busy; onClicked: studio.marks.duplicateSelected() }
                                 StudioButton { glyph: "trash"; text: "Delete"; quiet: true; Layout.fillWidth: true; implicitHeight: 32; hint: "Delete"; enabled: !studio.busy; onClicked: studio.marks.deleteSelected() }
                             }
                             RowLayout {
@@ -1572,7 +1719,7 @@ ApplicationWindow {
                             font.pixelSize: 10
                             enabled: !root.working
                             Accessible.name: root.videoMode ? "Change the recordings folder" : "Change the screenshots folder"
-                            onClicked: root.videoMode ? videoFolderDialog.open() : imageFolderDialog.open()
+                            onClicked: root.chooseFolder(root.videoMode ? "recordings" : "screenshots")
                         }
                     }
                 }
@@ -1657,17 +1804,31 @@ ApplicationWindow {
                     }
                 }
                 StudioButton {
+                    objectName: "editorSaveButton"
+                    visible: root.copyOnlyFinish
+                    text: "Copy and save"
+                    glyph: "copy"
+                    quiet: true
+                    implicitHeight: 44
+                    hint: "Copy to the clipboard and save a PNG in " + root.home(studio.outputDirectory) + " · Ctrl+S"
+                    enabled: !root.working && !studio.rendering
+                    onClicked: root.acceptCurrent()
+                }
+                StudioButton {
+                    objectName: "editorFinishButton"
                     readonly property string label: root.working ? "Working…"
                         : root.videoMode ? (root.recordingReview ? (root.videoUnchanged || root.videoSavedCurrent ? "Copy and close" : "Save and copy") : root.videoSavedCurrent || root.videoUnchanged ? "Copy video" : "Export video")
-                        : studio.recoveryAction.length ? studio.recoveryAction : "Copy and save"
+                        : studio.recoveryAction.length ? studio.recoveryAction : root.copyOnlyFinish ? "Copy" : "Copy and save"
                     text: label
-                    hint: root.videoMode ? (root.recordingReview && (root.videoUnchanged || root.videoSavedCurrent) ? "The video is saved in " + root.home(video.outputDirectory) + ". Copy it to the clipboard and close · Ctrl+S" : root.recordingReview ? "Save a new MP4 with your changes, copy it and close · Ctrl+S" : root.videoSavedCurrent || root.videoUnchanged ? "Copy the video file to paste into a chat or folder · Ctrl+S" : "Save a new MP4 with your changes · Ctrl+S") : "Copy to the clipboard and save a PNG · Ctrl+C"
+                    hint: root.videoMode ? (root.recordingReview && (root.videoUnchanged || root.videoSavedCurrent) ? "The video is saved in " + root.home(video.outputDirectory) + ". Copy it to the clipboard and close · Ctrl+S" : root.recordingReview ? "Save a new MP4 with your changes, copy it and close · Ctrl+S" : root.videoSavedCurrent || root.videoUnchanged ? "Copy the video file to paste into a chat or folder · Ctrl+S" : "Save a new MP4 with your changes · Ctrl+S")
+                        : root.copyOnlyFinish ? "Copy to the clipboard without saving · Ctrl+Enter"
+                        : "Copy to the clipboard and save a PNG · Ctrl+Enter or Ctrl+S"
                     glyph: root.videoMode && !root.recordingReview && !root.videoSavedCurrent && !root.videoUnchanged ? "record" : "copy"
                     primary: true
                     implicitHeight: 44
                     implicitWidth: Math.max(170, implicitContentWidth + 26)
                     enabled: !root.working && (root.videoMode ? root.videoLoaded : !studio.rendering)
-                    onClicked: root.acceptCurrent()
+                    onClicked: root.finishCurrent()
                 }
             }
         }

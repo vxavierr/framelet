@@ -12,6 +12,8 @@ Window {
     // The lower 48 px are reserved for passive hints outside the video.
     height: 96
     visible: false
+    onVisibleChanged: audioLevels.setSurface("control", "control", visible)
+    Component.onDestruction: audioLevels.setSurface("control", "control", false)
     palette.window: theme.alpha(theme.background, 1)
     palette.windowText: theme.text
     palette.base: theme.well
@@ -70,6 +72,7 @@ Window {
                           ? "Recording in " + recorder.remaining
                           : recorder.state === "countdown" ? "Starting in " + recorder.remaining
                           : recorder.state === "starting" ? "Starting…"
+                          : recorder.canForceStop ? "Still finishing…"
                           : recorder.state === "stopping" ? "Saving…"
                           : recorder.elapsed
                     elide: Text.ElideRight
@@ -112,14 +115,14 @@ Window {
             }
             Button {
                 id: stop
-                text: recorder.state === "countdown" ? "Cancel" : "Stop"
-                enabled: recorder.state !== "stopping"
+                text: recorder.canForceStop ? "Force" : recorder.state === "countdown" ? "Cancel" : "Stop"
+                enabled: recorder.state !== "stopping" || recorder.canForceStop
                 implicitWidth: 60; implicitHeight: 32
                 hoverEnabled: true
                 opacity: enabled ? 1 : 0.45
                 onClicked: recorder.stop()
-                Accessible.name: recorder.state === "countdown" ? "Cancel recording" : "Stop recording"
-                Accessible.description: recorder.stopKey.length ? recorder.stopKey + " also stops" : ""
+                Accessible.name: recorder.canForceStop ? "Force-stop recording" : recorder.state === "countdown" ? "Cancel recording" : "Stop recording"
+                Accessible.description: recorder.canForceStop ? "The file may be incomplete" : recorder.stopKey.length ? recorder.stopKey + " also stops" : ""
                 readonly property color fill: stop.down ? theme.mix(theme.recording, theme.background, 0.2) : stop.hovered ? theme.mix(theme.recording, theme.text, 0.14) : theme.recording
                 background: Rectangle {radius: theme.radius; color: stop.fill}
                 contentItem: Item {
@@ -133,11 +136,31 @@ Window {
             }
         }
     }
+    Rectangle {
+        objectName: "meterPlate"
+        visible: control.visible && control.live && lowerHint.text.length === 0
+        x: 0; y: 50; width: parent.width; height: 46
+        radius: theme.radius
+        color: theme.alpha(theme.background, 1)
+        border.width: theme.controlBorder.a > 0 ? (1) : 0
+        border.color: theme.controlBorder
+        Column {
+            id: meterRows
+            objectName: "meterRows"
+            x: 8; y: 3; width: parent.width - 16; spacing: 0
+            AudioMeter { width: parent.width; channel: audioLevels.microphone }
+            AudioMeter { width: parent.width; label: "Computer sound"; channel: audioLevels.sound }
+        }
+    }
     BarHint {
+        id: lowerHint
+        objectName: "lowerHint"
         anchors.horizontalCenter: parent.horizontalCenter
         y: 54
         maximumWidth: control.width
         text: !control.visible || control.countdownOnly ? ""
+            : recorder.canForceStop ? "Force-stop may leave an incomplete file"
+            : recorder.status.indexOf("Recording · camera unavailable") === 0 ? "Camera unavailable · screen-only"
             : control.pauseError ? recorder.status
             : recorder.pausePending ? "Waiting for recorder…"
             : pause.hovered && !pause.down ? pause.hint : ""

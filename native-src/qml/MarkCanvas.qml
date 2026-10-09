@@ -6,6 +6,9 @@ Item {
     id: editSurface
     property var doc
     property string tool: "select"
+    // Screenshot crops keep a new area of the current view. Video crops
+    // continue to edit their existing frame on the original video.
+    property bool cropCurrentView: false
     // No new marks while the owner is saving or loading.
     property bool locked: false
     // The image being marked, after any crop, and before it, in pixels.
@@ -17,9 +20,30 @@ Item {
     // The length of the video, so a mark that runs to its end still shows on
     // the last frame.
     property real duration: 0
+    // The owner supplies the visible part when this canvas is zoomed or scrolled.
+    property rect feedbackViewport: Qt.rect(0, 0, width, height)
+    property var constraintFeedback: ({})
+    readonly property bool constraintActive: drawArea.interaction !== "none"
+        && (drawArea.moved || (drawArea.interaction === "resize" && drawArea.resizeDragged))
+        && !typing && constraintFeedback.valid === true && !!constraintFeedback.label
+    readonly property string constraintLabel: constraintActive ? constraintFeedback.label : ""
     readonly property bool typing: textEditor.active
     readonly property bool dragging: drawArea.pressed
     readonly property bool hovered: drawArea.containsMouse
+    readonly property int cursorShape: drawArea.cursorShape
+    // The viewport can pan on empty space without taking a mark's drag or
+    // resize handle. Coordinates are local to this canvas.
+    function canPanAt(x, y) {
+        if (typing) return false;
+        if (x < 0 || y < 0 || x > width || y > height) return true;
+        return drawArea.handleAt(x, y) < 0 && doc.hitAt(x / width, y / height, false).index === undefined;
+    }
+    function updateHoverAt(x, y) {
+        if (x < 0 || y < 0 || x > width || y > height) {
+            drawArea.hoverMark = ({});
+            drawArea.hoverHandle = -1;
+        } else drawArea.updateHover(x, y);
+    }
     signal toolRequested(string key)
     // A click with the select tool that hit no mark.
     signal emptyClicked(bool hadSelection)
@@ -34,6 +58,7 @@ Item {
         transformTimer.stop();
         if (editSurface.doc) editSurface.doc.endTransform(false);
         drawArea.interaction = "none";
+        constraintFeedback = ({});
         guide.requestPaint();
     }
     onLockedChanged: if (locked) cancelDrag()
@@ -62,6 +87,10 @@ Item {
         property real startY: 0
         property real endX: 0
         property real endY: 0
+        property real rawX: 0
+        property real rawY: 0
+        property bool shiftHeld: false
+        property bool resizeDragged: false
         property string interaction: "none"
         property int handle: -1
         property int hoverHandle: -1
@@ -69,11 +98,13 @@ Item {
         property string pressedType: ""
         property var strokePoints: []
         property bool pressedEmpty: false
+        // A filled mark under a drawing tool's press: a click selects it, a drag draws.
+        property int pressedInside: -1
         property bool pressedWithSelection: false
-        readonly property bool moved: Math.hypot(endX - startX, endY - startY) > 3
+        readonly property bool moved: Math.hypot(rawX - startX, rawY - startY) > 3
         property var initialMark: ({})
         readonly property var transformMark: editSurface.tool === "crop"
-            ? editSurface.doc.hasCrop ? ({ type: "crop", boundX: editSurface.doc.cropBounds.x, boundY: editSurface.doc.cropBounds.y,
+            ? !editSurface.cropCurrentView && editSurface.doc.hasCrop ? ({ type: "crop", boundX: editSurface.doc.cropBounds.x, boundY: editSurface.doc.cropBounds.y,
                  boundW: editSurface.doc.cropBounds.width, boundH: editSurface.doc.cropBounds.height }) : ({})
             : editSurface.doc.selectedAnnotation
         readonly property bool selectionShown: !textEditor.active && editSurface.showing(transformMark)
@@ -90,14 +121,59 @@ Item {
                 .filter(point => !compact || point.id === 2 || (point.id >= 4 &&
                     (point.id % 2 === 0 ? r-l >= 32 : b-t >= 16)));
         }
-        function updatePointer(mouse) {
-            endX = Math.max(0, Math.min(width, mouse.x));
-            endY = Math.max(0, Math.min(height, mouse.y));
-            if ((interaction === "move" || interaction === "cropMove") && (mouse.modifiers & Qt.ShiftModifier)) {
+        function resolvePointer() {
+            const previousX = endX, previousY = endY;
+            endX = Math.max(0, Math.min(width, rawX));
+            endY = Math.max(0, Math.min(height, rawY));
+            // Keep the last resize readout while its throttled preview is pending.
+            if (interaction !== "resize" || !resizeDragged || !shiftHeld)
+                editSurface.constraintFeedback = ({});
+            if (interaction === "draw" && moved) {
+                const result = editSurface.doc.creationPreview(editSurface.tool,
+                    startX / width, startY / height, rawX / width, rawY / height,
+                    width, height, shiftHeld);
+                if (result.valid) {
+                    endX = result.x2 * width;
+                    endY = result.y2 * height;
+                    editSurface.constraintFeedback = result;
+                } else {
+                    endX = previousX;
+                    endY = previousY;
+                }
+            }
+            if ((interaction === "move" || interaction === "cropMove") && shiftHeld) {
                 if (Math.abs(endX-startX) >= Math.abs(endY-startY)) endY = startY;
                 else endX = startX;
             }
         }
+        function updatePointer(mouse) {
+            rawX = mouse.x;
+            rawY = mouse.y;
+            if (interaction === "resize" && moved) resizeDragged = true;
+            shiftHeld = !!(mouse.modifiers & Qt.ShiftModifier);
+            resolvePointer();
+        }
+        function modifierChanged(held) {
+            if (!pressed || shiftHeld === held) return;
+            shiftHeld = held;
+            resolvePointer();
+            transformTimer.stop();
+            previewTransform();
+            guide.requestPaint();
+        }
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
+                modifierChanged(true);
+                event.accepted = true;
+            }
+        }
+        Keys.onReleased: function(event) {
+            if (event.key === Qt.Key_Shift && !event.isAutoRepeat) {
+                modifierChanged(false);
+                event.accepted = true;
+            }
+        }
+        onActiveFocusChanged: if (!activeFocus && pressed) editSurface.cancelDrag()
         function cropRect() {
             let l = initialMark.boundX * width, t = initialMark.boundY * height;
             let r = l + initialMark.boundW * width, b = t + initialMark.boundH * height;
@@ -114,8 +190,9 @@ Item {
             return Qt.rect(l, t, r-l, b-t);
         }
         function previewTransform() {
-            if (interaction === "resize" && initialMark.type !== "crop")
-                editSurface.doc.previewTransform(handle, endX / width, endY / height);
+            if (interaction === "resize" && resizeDragged && initialMark.type !== "crop")
+                editSurface.constraintFeedback = editSurface.doc.previewConstrainedTransform(
+                    handle, rawX / width, rawY / height, width, height, shiftHeld);
             else if (interaction === "move")
                 editSurface.doc.previewTransform(-1, moved ? (endX-startX) / width : 0, moved ? (endY-startY) / height : 0);
         }
@@ -141,8 +218,11 @@ Item {
             pressedWithSelection = editSurface.doc.selectedAnnotation.type !== undefined;
             hoverMark = ({});
             hoverHandle = -1;
-            startX = endX = mouse.x;
-            startY = endY = mouse.y;
+            startX = endX = rawX = mouse.x;
+            startY = endY = rawY = mouse.y;
+            resizeDragged = false;
+            shiftHeld = !!(mouse.modifiers & Qt.ShiftModifier);
+            editSurface.constraintFeedback = ({});
             const nx = mouse.x / width, ny = mouse.y / height;
             if (mouse.button === Qt.RightButton) {
                 interaction = "none";
@@ -163,7 +243,7 @@ Item {
             if (editSurface.tool === "crop") {
                 initialMark = transformMark;
                 const crop = editSurface.doc.cropBounds;
-                interaction = editSurface.doc.hasCrop && nx > crop.x && nx < crop.x+crop.width && ny > crop.y && ny < crop.y+crop.height ? "cropMove" : "draw";
+                interaction = !editSurface.cropCurrentView && editSurface.doc.hasCrop && nx > crop.x && nx < crop.x+crop.width && ny > crop.y && ny < crop.y+crop.height ? "cropMove" : "draw";
                 guide.requestPaint();
                 return;
             }
@@ -179,6 +259,8 @@ Item {
                 guide.requestPaint();
                 return;
             }
+            const inside = editSurface.doc.hitAt(nx, ny, false);
+            pressedInside = inside.index !== undefined ? inside.index : -1;
             editSurface.doc.clearSelection();
             if (editSurface.tool === "select") {
                 interaction = "none";
@@ -193,14 +275,17 @@ Item {
                 interaction = "draw";
             guide.requestPaint();
         }
+        function updateHover(x, y) {
+            hoverHandle = handleAt(x, y);
+            if (hoverHandle >= 0) hoverMark = ({});
+            else if (editSurface.tool === "crop") {
+                const crop = editSurface.doc.cropBounds;
+                hoverMark = !editSurface.cropCurrentView && editSurface.doc.hasCrop && x/width > crop.x && x/width < crop.x+crop.width && y/height > crop.y && y/height < crop.y+crop.height ? ({type: "crop"}) : ({});
+            } else hoverMark = editSurface.doc.hitAt(x / width, y / height, editSurface.tool !== "select");
+        }
         onPositionChanged: function (mouse) {
             if (!pressed) {
-                hoverHandle = handleAt(mouse.x, mouse.y);
-                if (hoverHandle >= 0) hoverMark = ({});
-                else if (editSurface.tool === "crop") {
-                    const crop = editSurface.doc.cropBounds;
-                    hoverMark = editSurface.doc.hasCrop && mouse.x/width > crop.x && mouse.x/width < crop.x+crop.width && mouse.y/height > crop.y && mouse.y/height < crop.y+crop.height ? ({type: "crop"}) : ({});
-                } else hoverMark = editSurface.doc.hitAt(mouse.x / width, mouse.y / height, editSurface.tool !== "select");
+                updateHover(mouse.x, mouse.y);
                 return;
             }
             updatePointer(mouse);
@@ -232,12 +317,21 @@ Item {
                 strokePoints = [];
             } else if (interaction === "newText")
                 textEditor.create(startX / width, startY / height);
-            else if (interaction === "draw")
-                editSurface.doc.edit(editSurface.tool, startX / width, startY / height, endX / width, endY / height);
+            // Step places its number with a click, so it never selects instead.
+            else if (interaction === "draw" && pressedInside >= 0 && !moved && editSurface.tool !== "step")
+                editSurface.doc.select(pressedInside);
+            else if (interaction === "draw") {
+                if (editSurface.tool === "crop" && editSurface.cropCurrentView) {
+                    if (editSurface.doc.cropCurrentView(startX / width, startY / height, endX / width, endY / height))
+                        editSurface.toolRequested("select");
+                } else editSurface.doc.edit(editSurface.tool, startX / width, startY / height, endX / width, endY / height);
+            }
             else if (pressedEmpty && !moved)
                 editSurface.emptyClicked(pressedWithSelection);
             pressedEmpty = false;
+            pressedInside = -1;
             interaction = "none";
+            editSurface.constraintFeedback = ({});
             hoverMark = ({});
             hoverHandle = handleAt(endX, endY);
             guide.requestPaint();
@@ -314,6 +408,41 @@ Item {
         interval: 40
         onTriggered: drawArea.previewTransform()
     }
+    Rectangle {
+        objectName: "constraintReadout"
+        visible: editSurface.constraintActive
+        z: 5
+        width: readout.implicitWidth + 12
+        height: readout.implicitHeight + 8
+        radius: 4
+        color: theme.background
+        border.color: theme.accent
+        border.width: 1
+        readonly property real viewportLeft: Math.max(0, editSurface.feedbackViewport.x)
+        readonly property real viewportTop: Math.max(0, editSurface.feedbackViewport.y)
+        readonly property real viewportRight: Math.min(editSurface.width, editSurface.feedbackViewport.x + editSurface.feedbackViewport.width)
+        readonly property real viewportBottom: Math.min(editSurface.height, editSurface.feedbackViewport.y + editSurface.feedbackViewport.height)
+        x: Math.max(viewportLeft + 4, Math.min(viewportRight - width - 4, drawArea.rawX + 14))
+        y: Math.max(viewportTop + 4, Math.min(viewportBottom - height - 4, drawArea.rawY + 14))
+        Text {
+            textFormat: Text.PlainText
+            id: readout
+            anchors.centerIn: parent
+            text: editSurface.constraintLabel
+            font.pixelSize: 12
+            color: theme.text
+        }
+    }
+    Connections {
+        target: editSurface.Window.window
+        function onActiveChanged() {
+            if (!editSurface.Window.window.active) editSurface.cancelDrag();
+        }
+    }
+    Connections {
+        target: theme
+        function onChanged() { guide.requestPaint(); }
+    }
     // Hover: a quiet dashed outline says "this can be picked up".
     Canvas {
         id: hoverOutline
@@ -384,7 +513,8 @@ Item {
         readonly property color ink: creating ? (defaults.color || "#ffffff") : (mark.color || "#ffffff")
         readonly property color fill: creating ? (defaults.background || "#151a20") : (mark.background || "#151a20")
         readonly property real fillOpacity: creating ? (defaults.backgroundOpacity ?? 1) : (mark.backgroundOpacity ?? 1)
-        readonly property real maxLine: Math.max(1, Math.min(editSurface.width, !creating && mark.textBoxWidth > 0 ? mark.textBoxWidth * editSurface.width : editSurface.sourceSize.width * 0.85 * viewScale) - inset * 2)
+        readonly property string textAlign: creating ? (defaults.textAlign || "center") : (mark.textAlign || "center")
+        readonly property real maxLine: Math.max(1, Math.min(editSurface.width, !creating && mark.textBoxWidth > 0 ? mark.textBoxWidth * editSurface.width : editSurface.width * 0.85) - inset * 2)
         visible: active
         z: 30
         x: Math.max(0, Math.min(anchorX * editSurface.width, editSurface.width - width))
@@ -479,7 +609,7 @@ Item {
                     selectedTextColor: textEditor.ink
                     verticalAlignment: TextEdit.AlignVCenter
                     wrapMode: TextEdit.Wrap
-                    horizontalAlignment: textEditor.creating || textEditor.mark.textAlign === "center" || !textEditor.mark.textAlign ? TextEdit.AlignHCenter : textEditor.mark.textAlign === "right" ? TextEdit.AlignRight : TextEdit.AlignLeft
+                    horizontalAlignment: textEditor.textAlign === "center" || !textEditor.textAlign ? TextEdit.AlignHCenter : textEditor.textAlign === "right" ? TextEdit.AlignRight : TextEdit.AlignLeft
                     selectByMouse: true
                     Accessible.name: "Label text"
                     onTextChanged: if (length > 240) remove(240, length)

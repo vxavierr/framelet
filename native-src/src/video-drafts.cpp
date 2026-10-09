@@ -1,4 +1,5 @@
 #include "edit-json.hpp"
+#include "mark-constraints.hpp"
 #include "video.hpp"
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -36,22 +37,7 @@ QString idFor(const QUrl &source) {
 } // namespace
 
 QRect Video::cropPixels() const {
-  if (m_frameSize.isEmpty())
-    return {};
-  if (m_frameSize.width() < 2 || m_frameSize.height() < 2)
-    return {QPoint(0, 0), m_frameSize};
-  const QRectF bounds = m_marks.cropBounds();
-  const int left = std::clamp(int(bounds.x() * m_frameSize.width()) / 2 * 2, 0,
-                              std::max(0, m_frameSize.width() - 2));
-  const int top = std::clamp(int(bounds.y() * m_frameSize.height()) / 2 * 2, 0,
-                             std::max(0, m_frameSize.height() - 2));
-  const int right =
-      std::clamp(int(bounds.right() * m_frameSize.width()) / 2 * 2, left + 2,
-                 m_frameSize.width());
-  const int bottom =
-      std::clamp(int(bounds.bottom() * m_frameSize.height()) / 2 * 2, top + 2,
-                 m_frameSize.height());
-  return {left, top, right - left, bottom - top};
+  return MarkConstraints::videoCropPixels(m_frameSize, Frame::cropBounds(m_marks.edits()));
 }
 QRectF Video::cropBounds() const {
   const auto pixels = cropPixels();
@@ -115,7 +101,7 @@ bool Video::saveDraftNow() {
       m_editState.value("clipEnd").toDouble() < m_duration - 0.001 ||
       m_editState.value("muted").toBool() ||
       !m_editState.value("cuts").toList().isEmpty() ||
-      (!m_cameraSource.isEmpty() && m_cameraLayout.value("visible").toBool());
+      !m_cameraSource.isEmpty();
   m_draftId = idFor(m_source);
   if (!edited) {
     QFile::remove(directory() + "/" + m_draftId + ".json");
@@ -243,7 +229,10 @@ void Video::restorePendingDraft() {
     m_saved.clear();
   m_savedSignature =
       m_saved.isEmpty() ? QString() : doc.value("savedSignature").toString();
-  m_status = "Video draft reopened. Your original video stays unchanged.";
+  m_status = "Video draft reopened. " +
+             (m_cameraWarning.isEmpty()
+                  ? QString("Your original video stays unchanged.")
+                  : m_cameraWarning);
   m_draftTimer.stop();
 }
 void Video::deleteDraft(const QString &id) {
@@ -304,18 +293,30 @@ QRectF Video::cameraBounds() const {
 }
 void Video::readCameraTrack() {
   m_cameraSource = QUrl();
+  m_cameraWarning.clear();
   m_cameraDuration = 0;
   m_cameraLayout = {
       {"visible", false}, {"width", 0.24}, {"x", 0.74}, {"y", 0.72}};
   const auto doc = read(m_source.toLocalFile() + ".camera.json");
+  if (doc.value("version").toInt() == 1 &&
+      doc.value("missing").toBool()) {
+    m_cameraWarning = "The camera was not recorded. "
+                      "This video continues screen-only.";
+    m_status = m_cameraWarning;
+    return;
+  }
   const QString name = doc.value("file").toString();
   // Sidecars can only refer to a sibling track, never an arbitrary path.
   if (doc.value("version").toInt() != 1 || name.isEmpty() ||
       name != QFileInfo(name).fileName())
     return;
   const QString path = QFileInfo(m_source.toLocalFile()).dir().filePath(name);
-  if (!QFileInfo(path).isFile() || QFileInfo(path).isSymLink())
+  if (!QFileInfo(path).isFile() || QFileInfo(path).isSymLink()) {
+    m_cameraWarning = "The camera recording is missing. "
+                      "This video continues screen-only.";
+    m_status = m_cameraWarning;
     return;
+  }
   const double duration = doc.value("duration").toDouble();
   if (!std::isfinite(duration) || duration <= 0 || duration > m_duration + 1)
     return;

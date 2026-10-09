@@ -9,6 +9,7 @@ import QtMultimedia
 Window {
     id: setup
     visible: false
+    Component.onDestruction: audioLevels.setSurface("options", "options", false)
     palette.window: theme.alpha(theme.background, 1)
     palette.windowText: theme.text
     palette.base: theme.well
@@ -27,7 +28,10 @@ Window {
     title: "Framelet — recording"
     readonly property int wantedHeight: content.implicitHeight + recordFooter.implicitHeight + 72
     onWantedHeightChanged: if (visible) height = Math.min(wantedHeight, screen ? screen.height : wantedHeight)
-    onVisibleChanged: if (visible) keys.forceActiveFocus()
+    onVisibleChanged: {
+        audioLevels.setSurface("options", "options", visible)
+        if (visible) keys.forceActiveFocus()
+    }
     onClosing: function(event) { if (visible) { event.accepted = false; recorder.cancel() } }
     Item {
         id: keys
@@ -133,6 +137,14 @@ Window {
                         onActivated: recorder.microphone = currentIndex
                         displayText: currentIndex < 0 ? (recorder.microphones.length ? "Choose a microphone" : "No microphone found") : currentText
                     }
+                    AudioMeter { Layout.fillWidth: true; detailed: true; channel: audioLevels.microphone }
+                    AudioMeter { Layout.fillWidth: true; detailed: true; label: "Computer sound"; channel: audioLevels.sound }
+                    Text {
+                        textFormat: Text.PlainText
+                        visible: recorder.micAudio
+                        text: "Say a few words to check your microphone."
+                        color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12
+                    }
                     Text {
                         textFormat: Text.PlainText
                         visible: !recorder.desktopAudio && !recorder.micAudio
@@ -159,7 +171,7 @@ Window {
                         Layout.fillWidth: true; visible: recorder.camera.enabled && recorder.camera.devices.length > 0
                         model: recorder.camera.devices; textRole: "label"
                         currentIndex: recorder.camera.device
-                        displayText: currentIndex < 0 ? "No camera found" : currentText
+                        displayText: currentIndex < 0 ? (recorder.camera.unavailable ? "Selected camera not connected" : "No camera found") : currentText
                         onActivated: recorder.camera.device = currentIndex
                     }
                     Rectangle {
@@ -167,7 +179,7 @@ Window {
                         visible: recorder.camera.enabled && recorder.camera.devices.length > 0
                         color: theme.well; radius: theme.radius; clip: true
                         VideoOutput { id: cameraPreview; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectFit }
-                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !recorder.camera.ready; text: "Starting camera…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !recorder.camera.ready; text: recorder.camera.unavailable ? "Selected camera not connected" : "Starting camera…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                     }
                     Binding { target: recorder.camera; property: "previewSink"; value: setup.visible && recorder.camera.enabled ? cameraPreview.videoSink : null }
                     Text {
@@ -219,7 +231,7 @@ Window {
                                 textFormat: Text.PlainText
                                 visible: !recorder.stopShortcut && shortcuts.recordState === "custom"
                                 Layout.fillWidth: true
-                                text: "Alt+Print already runs something else. Bind any key to omaframe --record to use it here."
+                                text: "Alt+Print already runs something else. Bind any key to framelet --record to use it here."
                                 color: theme.muted
                                 font.family: theme.fontFamily
                                 font.pixelSize: 11
@@ -261,11 +273,11 @@ Window {
                     Layout.alignment: Qt.AlignRight
                     Layout.fillWidth: optionsScroll.availableWidth < 480
                     id: primaryButton
-                    text: !recorder.hasTarget ? "Choose area and record" : recorder.countdown > 0 ? "Record in " + recorder.countdown + " s" : "Start recording"
+                    text: recorder.canForceStop ? "Force-stop (file may be incomplete)" : !recorder.hasTarget ? "Choose area and record" : recorder.countdown > 0 ? "Record in " + recorder.countdown + " s" : "Start recording"
                     glyph: "record"
                     primary: true
-                    enabled: recorder.state !== "loading" && !recorder.active && (!recorder.hasTarget || recorder.canStart)
-                    onClicked: if (enabled) (!recorder.hasTarget ? recorder.chooseRegion() : recorder.start())
+                    enabled: recorder.canForceStop || (recorder.state !== "loading" && !recorder.active && (!recorder.hasTarget || recorder.canStart))
+                    onClicked: if (enabled) (recorder.canForceStop ? recorder.stop() : !recorder.hasTarget ? recorder.chooseRegion() : recorder.start())
                 }
             }
         }

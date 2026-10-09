@@ -1,4 +1,5 @@
 #include "marks.hpp"
+#include "mark-constraints.hpp"
 #include <QBuffer>
 #include <QLineF>
 #include <QPainter>
@@ -7,6 +8,7 @@
 
 void MarkDocument::reset(const QImage &base) {
   m_transform.reset();
+  m_copied.reset();
   m_base = base;
   m_edits.clear();
   m_undoStates.clear();
@@ -17,8 +19,19 @@ void MarkDocument::reset(const QImage &base) {
 void MarkDocument::restore(const QImage &base, QVector<Frame::Edit> edits,
                            int selected) {
   m_transform.reset();
+  m_copied.reset();
   m_base = base;
   m_edits = std::move(edits);
+  QVector<Frame::Edit *> steps;
+  for (auto &edit : m_edits)
+    if (edit.type == "step") {
+      if (edit.stepOrder <= 0) edit.stepOrder = steps.size() + 1;
+      steps.append(&edit);
+    }
+  std::stable_sort(steps.begin(), steps.end(), [](const auto *a, const auto *b) {
+    return a->stepOrder < b->stepOrder;
+  });
+  for (int i = 0; i < steps.size(); ++i) steps[i]->stepOrder = i + 1;
   m_undoStates.clear();
   m_redoStates.clear();
   m_selected = std::clamp(selected, -1, int(m_edits.size()) - 1);
@@ -292,15 +305,16 @@ void MarkDocument::commit(bool modified) {
   emit changed();
   emit edited(modified && !m_previewing);
 }
-static bool fitTextToImage(Frame::Edit &edit, const QImage &source) {
+static bool fitTextToImage(Frame::Edit &edit, const QImage &source,
+                           QRectF room = {0, 0, 1, 1}) {
   if (edit.type != "text" || source.isNull())
     return false;
   const int requested = Frame::textPixelSize(edit, source);
-  auto fits = [&source, &edit](int pixels) {
+  auto fits = [&source, &edit, room](int pixels) {
     Frame::Edit candidate = edit;
     candidate.size = Frame::textSizeForPixels(pixels, source);
     const QRectF bounds = Frame::annotationBounds(candidate, source);
-    return bounds.width() <= 1. && bounds.height() <= 1.;
+    return bounds.width() <= room.width() && bounds.height() <= room.height();
   };
   if (!fits(requested)) {
     int low = 8, high = requested;
@@ -313,14 +327,14 @@ static bool fitTextToImage(Frame::Edit &edit, const QImage &source) {
   }
   const QRectF bounds = Frame::annotationBounds(edit, source);
   double dx = 0., dy = 0.;
-  if (bounds.width() <= 1.)
-    dx = std::clamp(1. - bounds.right(), -bounds.left(), 0.);
+  if (bounds.width() <= room.width())
+    dx = std::clamp(0., room.left() - bounds.left(), room.right() - bounds.right());
   else
-    dx = -bounds.left();
-  if (bounds.height() <= 1.)
-    dy = std::clamp(1. - bounds.bottom(), -bounds.top(), 0.);
+    dx = room.left() - bounds.left();
+  if (bounds.height() <= room.height())
+    dy = std::clamp(0., room.top() - bounds.top(), room.bottom() - bounds.bottom());
   else
-    dy = -bounds.top();
+    dy = room.top() - bounds.top();
   edit.from += QPointF(dx, dy);
   edit.to = edit.from;
   return Frame::textPixelSize(edit, source) < requested;
@@ -361,9 +375,14 @@ void MarkDocument::edit(const QString &type, double x1, double y1,
     edit.textStyle = style.value("textStyle").toString();
     edit.textAlign = style.value("textAlign").toString();
     edit.size = Frame::textSizeForPixels(style.value("fontPx").toInt(), m_base);
-    fitTextToImage(edit, m_base);
+    const QRectF room = cropBounds();
+    if (hasCrop())
+      edit.textBox.setWidth(std::min(room.width() * .85,
+                                    Frame::annotationBounds(edit, m_base).width()));
+    fitTextToImage(edit, m_base, room);
   } else applyToolDefaults(edit);
   timeNewMark(edit);
+  orderNewStep(edit);
   m_edits.append(edit);
   if (type != "crop")
     m_selected = m_edits.size() - 1;
@@ -372,6 +391,36 @@ void MarkDocument::edit(const QString &type, double x1, double y1,
                    : "Edit applied. Undo is always available.");
   commit();
 }
+bool MarkDocument::cropCurrentView(double x1, double y1, double x2, double y2) {
+  if (locked() || m_base.isNull() || !std::isfinite(x1) || !std::isfinite(y1) ||
+      !std::isfinite(x2) || !std::isfinite(y2))
+    return false;
+  const QPointF a = sourcePoint(x1, y1), b = sourcePoint(x2, y2);
+  if (a.x() == b.x() || a.y() == b.y())
+    return false;
+  const QRect current = Frame::cropPixels(m_base.size(), m_edits);
+  const QRect pixels = Frame::cropPixels(m_base.size(), {{"crop", a, b}});
+  // Invalid sub-two-pixel crops render the full source; reject that fallback
+  // and pixel-equivalent crops without creating an undo step.
+  if (!current.contains(pixels) || pixels == current)
+    return false;
+  const QRectF next(double(pixels.x()) / m_base.width(),
+                    double(pixels.y()) / m_base.height(),
+                    double(pixels.width()) / m_base.width(),
+                    double(pixels.height()) / m_base.height());
+  if (m_edits.size() >= MaxEdits && !hasCrop()) {
+    emit message("This image has reached the 100-edit limit.");
+    return false;
+  }
+  saveHistory();
+  m_edits.removeIf([](const Frame::Edit &edit) { return edit.type == "crop"; });
+  m_edits.append({"crop", next.topLeft(), next.bottomRight()});
+  m_selected = -1;
+  emit message("Crop applied. Undo restores the previous crop.");
+  commit();
+  return true;
+}
+
 void MarkDocument::redactAreas(const QVector<QRectF> &areas) {
   if (locked() || areas.isEmpty())
     return;
@@ -395,11 +444,9 @@ void MarkDocument::addStroke(const QVariantList &points, const QString &type) {
   if (locked() || points.size() < 2 || m_edits.size() >= MaxEdits)
     return;
   QVector<QPointF> path;
-  path.reserve(std::min<qsizetype>(points.size(), 2048));
+  path.reserve(points.size());
   double length = 0.;
   for (const QVariant &item : points) {
-    if (path.size() >= 2048)
-      break;
     const QVariantMap point = item.toMap();
     if (!point.contains("x") || !point.contains("y"))
       continue;
@@ -411,6 +458,13 @@ void MarkDocument::addStroke(const QVariantList &points, const QString &type) {
   }
   if (path.size() < 2 || length < 0.006)
     return;
+  if (path.size() > 2048) {
+    QVector<QPointF> sampled;
+    sampled.reserve(2048);
+    for (int i = 0; i < 2048; ++i)
+      sampled.append(path[qRound64(double(i) * (path.size() - 1) / 2047)]);
+    path = std::move(sampled);
+  }
   double left = 1., right = 0., top = 1., bottom = 0.;
   for (const QPointF &point : path) {
     left = std::min(left, point.x()); right = std::max(right, point.x());
@@ -435,6 +489,17 @@ void MarkDocument::saveHistory() {
     m_undoStates.removeFirst();
   m_undoStates.append({m_edits, m_selected});
   m_redoStates.clear();
+}
+QRectF MarkDocument::cropBounds() const {
+  if (m_base.isNull()) return Frame::cropBounds(m_edits);
+  // Match the actual screenshot pixels or even-pixel video viewport.
+  const QRect pixels = m_duration > 0
+      ? MarkConstraints::videoCropPixels(m_base.size(), Frame::cropBounds(m_edits))
+      : Frame::cropPixels(m_base.size(), m_edits);
+  return {double(pixels.x()) / m_base.width(),
+          double(pixels.y()) / m_base.height(),
+          double(pixels.width()) / m_base.width(),
+          double(pixels.height()) / m_base.height()};
 }
 QPointF MarkDocument::sourcePoint(double x, double y) const {
   const QRectF crop = cropBounds();
@@ -610,7 +675,7 @@ void MarkDocument::endTextEdit(const QString &text, bool apply) {
     } else if (m_edits[index].text != text.left(240)) {
       saveHistory();
       m_edits[index].text = text.left(240);
-      const bool fitted = fitTextToImage(m_edits[index], m_base);
+      const bool fitted = fitTextToImage(m_edits[index], m_base, cropBounds());
       modified = true;
       emit message(fitted ? "Text updated. Font size limited so the full label fits."
                           : "Text updated.");
@@ -635,6 +700,59 @@ void MarkDocument::previewTransform(int handle, double x, double y) {
   if (m_edits == m_transform->edits && previous != m_edits)
     commit(false);
   m_previewing = false;
+}
+namespace {
+QVariantMap feedback(const MarkConstraints::Result &result) {
+  return {{"valid", result.valid},
+          {"label", result.valid ? result.label : QString{}},
+          {"x1", result.anchor.x()},
+          {"y1", result.anchor.y()},
+          {"x2", result.point.x()},
+          {"y2", result.point.y()}};
+}
+} // namespace
+QVariantMap MarkDocument::creationPreview(const QString &type, double x1,
+                                          double y1, double x2, double y2,
+                                          double width, double height,
+                                          bool constrain) const {
+  return feedback(MarkConstraints::resolve(type, {x1, y1}, {x2, y2},
+                                           {width, height}, constrain));
+}
+QVariantMap MarkDocument::previewConstrainedTransform(int handle, double x,
+                                                      double y, double width,
+                                                      double height,
+                                                      bool constrain) {
+  if (!m_transform || locked() || m_selected != m_transform->selected)
+    return {};
+  const auto &original = m_transform->edits[m_selected];
+  const bool vector = original.type == "line" || original.type == "arrow";
+  if (!constrain || handle < 0 ||
+      (vector ? handle > 1
+              : !MarkConstraints::shape(original.type) || handle > 3)) {
+    previewTransform(handle, x, y);
+    return {};
+  }
+  const QRectF crop = cropBounds();
+  auto view = [crop](QPointF p) {
+    return QPointF((p.x() - crop.x()) / crop.width(),
+                   (p.y() - crop.y()) / crop.height());
+  };
+  const QRectF r = QRectF(view(original.from), view(original.to)).normalized();
+  const QPointF anchor = vector
+                             ? view(handle == 0 ? original.to : original.from)
+                         : handle == 0 ? r.bottomRight()
+                         : handle == 1 ? r.bottomLeft()
+                         : handle == 2 ? r.topLeft()
+                                       : r.topRight();
+  // A degenerate box has no proportion to keep; fall back to a square.
+  const double ratio = (r.width() * width) / (r.height() * height);
+  const double aspect =
+      vector || !std::isfinite(ratio) || ratio <= 0. ? 1. : ratio;
+  const auto result = MarkConstraints::resolve(original.type, anchor, {x, y},
+                                               {width, height}, true, aspect);
+  if (result.valid)
+    previewTransform(handle, result.point.x(), result.point.y());
+  return feedback(result);
 }
 void MarkDocument::endTransform(bool apply) {
   if (!m_transform)
@@ -728,7 +846,7 @@ void MarkDocument::resizeSelected(int handle, double x, double y) {
       if (handle == 4)
         updated.from.setY(std::max(0., bounds.bottom() - laidOut.height()));
       updated.to = updated.from;
-      fitTextToImage(updated, m_base);
+      fitTextToImage(updated, m_base, cropBounds());
       if (updated.textBox == edit.textBox && updated.from == edit.from)
         return;
       saveHistory();
@@ -784,7 +902,7 @@ void MarkDocument::resizeSelected(int handle, double x, double y) {
                              std::clamp(anchor.y(), 0., 1.));
       updated.to = updated.from;
     }
-    const bool fitted = fitTextToImage(updated, m_base);
+    const bool fitted = fitTextToImage(updated, m_base, cropBounds());
     saveHistory();
     m_edits[m_selected] = updated;
     if (fitted)
@@ -840,26 +958,107 @@ void MarkDocument::deleteSelected() {
   m_selected = -1;
   commit();
 }
+static void translate(Frame::Edit &edit, QPointF by) {
+  edit.from += by;
+  edit.to += by;
+  for (QPointF &point : edit.points)
+    point += by;
+}
+void MarkDocument::orderNewStep(Frame::Edit &edit) const {
+  if (edit.type != "step") return;
+  int order = 0;
+  for (const auto &existing : m_edits)
+    if (existing.type == "step") order = std::max(order, existing.stepOrder);
+  edit.stepOrder = order + 1;
+}
+static double offsetInside(double wanted, double first, double last,
+                            double roomFirst, double roomLast) {
+  if (last - first > roomLast - roomFirst) return 0.;
+  return std::clamp(wanted, roomFirst - first, roomLast - last);
+}
+void MarkDocument::appendOffset(Frame::Edit edit) {
+  const QRectF bounds = Frame::annotationBounds(edit, m_base);
+  const double stepX = 12. / std::max(1, m_base.width());
+  const double stepY = 12. / std::max(1, m_base.height());
+  const QRectF room = cropBounds();
+  const double dx = offsetInside(bounds.right() + stepX <= room.right() ? stepX : -stepX,
+                                 bounds.left(), bounds.right(), room.left(), room.right());
+  const double dy = offsetInside(bounds.bottom() + stepY <= room.bottom() ? stepY : -stepY,
+                                 bounds.top(), bounds.bottom(), room.top(), room.bottom());
+  translate(edit, {dx, dy});
+  orderNewStep(edit);
+  saveHistory();
+  m_edits.append(edit);
+  m_selected = m_edits.size() - 1;
+}
 void MarkDocument::duplicateSelected() {
   if (locked() || m_selected < 0 || m_selected >= m_edits.size() ||
       m_edits.size() >= MaxEdits || m_edits[m_selected].type == "crop")
     return;
-  Frame::Edit copy = m_edits[m_selected];
-  const QRectF bounds = Frame::annotationBounds(copy, m_base);
-  const double stepX = 12. / std::max(1, m_base.width());
-  const double stepY = 12. / std::max(1, m_base.height());
-  const double dx = bounds.right() + stepX <= 1. ? stepX
-                      : bounds.left() - stepX >= 0. ? -stepX : 0.;
-  const double dy = bounds.bottom() + stepY <= 1. ? stepY
-                      : bounds.top() - stepY >= 0. ? -stepY : 0.;
-  copy.from += QPointF(dx, dy);
-  copy.to += QPointF(dx, dy);
-  for (QPointF &point : copy.points)
-    point += QPointF(dx, dy);
-  saveHistory();
-  m_edits.append(copy);
-  m_selected = m_edits.size() - 1;
+  appendOffset(m_edits[m_selected]);
   emit message("Annotation duplicated. Drag it to place it.");
+  commit();
+}
+bool MarkDocument::copySelected() {
+  if (m_selected < 0 || m_selected >= m_edits.size() ||
+      m_edits[m_selected].type == "crop")
+    return false;
+  m_copied = m_edits[m_selected];
+  // Pastes step toward the side with more room, so a row of them does not
+  // fold back onto the copy at an edge.
+  const QRectF bounds = Frame::annotationBounds(*m_copied, m_base);
+  m_pasteStep = {(bounds.center().x() <= cropBounds().center().x() ? 12. : -12.) / std::max(1, m_base.width()),
+                 (bounds.center().y() <= cropBounds().center().y() ? 12. : -12.) / std::max(1, m_base.height())};
+  m_pastes = 0;
+  emit message("Annotation copied. Press Ctrl+V to paste it.");
+  emit changed();
+  return true;
+}
+void MarkDocument::cutSelected() {
+  if (locked() || !copySelected())
+    return;
+  deleteSelected();
+  emit message("Annotation cut. Press Ctrl+V to paste it.");
+}
+void MarkDocument::paste() {
+  if (locked() || !m_copied)
+    return;
+  if (m_edits.size() >= MaxEdits) {
+    emit message("This image has reached the 100-edit limit.");
+    return;
+  }
+  Frame::Edit edit = *m_copied;
+  // Each paste is a step further from the copy, stopping at the crop's edge.
+  const QRectF bounds = Frame::annotationBounds(edit, m_base);
+  const QPointF wanted = m_pasteStep * (m_pastes + 1);
+  const QRectF room = cropBounds();
+  const QPointF shift(offsetInside(wanted.x(), bounds.left(), bounds.right(),
+                                    room.left(), room.right()),
+                      offsetInside(wanted.y(), bounds.top(), bounds.bottom(),
+                                    room.top(), room.bottom()));
+  translate(edit, shift);
+  if (m_duration > 0) {
+    const double end = edit.end < 0 ? m_duration : edit.end;
+    if (edit.type == "blur" || edit.type == "redact") {
+      // A cover keeps its times so it never starts after what it hides,
+      // widened to the playhead so the paste can be seen and placed.
+      edit.start = std::min(edit.start, std::clamp(m_playhead, 0., std::max(0., m_duration - 0.1)));
+      edit.end = std::max(end, std::min(m_duration, m_playhead + 0.1));
+    } else {
+      // Anything else shows for as long as the copy did, from the playhead,
+      // and one that ran to the end still does.
+      const double length = end - edit.start;
+      edit.start = std::clamp(m_playhead, 0., std::max(0., m_duration - 0.1));
+      edit.end = end >= m_duration ? m_duration
+                                   : std::clamp(edit.start + length, edit.start + 0.1, m_duration);
+    }
+  }
+  ++m_pastes;
+  orderNewStep(edit);
+  saveHistory();
+  m_edits.append(edit);
+  m_selected = m_edits.size() - 1;
+  emit message("Annotation pasted. Drag it to place it.");
   commit();
 }
 void MarkDocument::moveSelectedLayer(int direction) {
@@ -886,7 +1085,7 @@ void MarkDocument::updateSelectedText(const QString &text) {
     return;
   saveHistory();
   m_edits[m_selected].text = updated;
-  const bool fitted = fitTextToImage(m_edits[m_selected], m_base);
+  const bool fitted = fitTextToImage(m_edits[m_selected], m_base, cropBounds());
   emit message(fitted ? "Text updated. Font size limited so the full label fits."
                       : "Text updated.");
   commit();
@@ -948,7 +1147,7 @@ void MarkDocument::setLabelStyle(const QVariantMap &style) {
     if (fields.contains("fontPx")) {
       const int pixels = fields["fontPx"].toInt();
       updated.size = Frame::textSizeForPixels(pixels ? pixels : newTextPixels(), m_base);
-      fitTextToImage(updated, m_base);
+      fitTextToImage(updated, m_base, cropBounds());
     }
     if (updated != m_edits[m_selected]) {
       saveHistory();
@@ -985,7 +1184,7 @@ void MarkDocument::setSelectedSize(double size) {
     return;
   saveHistory();
   m_edits[m_selected].size = next;
-  const bool fitted = fitTextToImage(m_edits[m_selected], m_base);
+  const bool fitted = fitTextToImage(m_edits[m_selected], m_base, cropBounds());
   if (fitted)
     emit message("Font size limited so the full label fits.");
   commit();

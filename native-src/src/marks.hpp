@@ -21,6 +21,8 @@ class MarkDocument final : public QObject {
   Q_PROPERTY(QVariantMap labelStyle READ labelStyle NOTIFY changed)
   Q_PROPERTY(QVariantMap toolDefaults READ toolDefaults NOTIFY changed)
   Q_PROPERTY(bool textEditing READ textEditing NOTIFY changed)
+  /** A copied mark is waiting for Ctrl+V. */
+  Q_PROPERTY(bool canPaste READ canPaste NOTIFY changed)
   /** Every mark, for drawing them over a video: index, type, x1, y1, x2, y2,
    *  start, end, text, color and size. */
   Q_PROPERTY(QVariantList annotations READ annotations NOTIFY changed)
@@ -50,7 +52,7 @@ public:
   bool canUndo() const { return !m_undoStates.isEmpty(); }
   bool canRedo() const { return !m_redoStates.isEmpty(); }
   bool hasCrop() const;
-  QRectF cropBounds() const { return Frame::cropBounds(m_edits); }
+  QRectF cropBounds() const;
   QVariantMap selectedAnnotation() const;
   /** The font size a new label starts at, in source pixels. */
   int newTextPixels() const;
@@ -65,6 +67,7 @@ public:
   Q_INVOKABLE void resetToolStyle(const QString &type);
   Q_INVOKABLE QString stylePreview(const QString &type, const QVariantMap &style) const;
   bool textEditing() const { return m_hiddenEdit >= 0; }
+  bool canPaste() const { return m_copied.has_value(); }
   QVariantList annotations() const;
   double duration() const { return m_duration; }
   void setDuration(double seconds);
@@ -73,6 +76,8 @@ public:
 
   Q_INVOKABLE void edit(const QString &type, double x1, double y1, double x2,
                         double y2, const QString &text = {});
+  /** Crop the currently visible image, preserving earlier crops in undo history. */
+  Q_INVOKABLE bool cropCurrentView(double x1, double y1, double x2, double y2);
   Q_INVOKABLE void addStroke(const QVariantList &points, const QString &type = "pen");
   /** Redacts each area, given as fractions of the whole image, in one step
    *  that a single undo takes back. */
@@ -94,12 +99,26 @@ public:
   /** Preview from the drag's original geometry; committing adds one undo step. */
   Q_INVOKABLE void beginTransform();
   Q_INVOKABLE void previewTransform(int handle, double x, double y);
+  Q_INVOKABLE QVariantMap creationPreview(const QString &type, double x1,
+                                          double y1, double x2, double y2,
+                                          double width, double height,
+                                          bool constrain) const;
+  Q_INVOKABLE QVariantMap previewConstrainedTransform(int handle, double x,
+                                                      double y, double width,
+                                                      double height,
+                                                      bool constrain);
   Q_INVOKABLE void endTransform(bool apply);
   Q_INVOKABLE void moveSelected(double dx, double dy);
   Q_INVOKABLE void nudgeSelected(int dx, int dy);
   Q_INVOKABLE void resizeSelected(int handle, double x, double y);
   Q_INVOKABLE void deleteSelected();
   Q_INVOKABLE void duplicateSelected();
+  /** Copy, cut and paste marks within this image. Nothing touches the
+   *  system clipboard. Each paste lands a step further from the last, and
+   *  on a video it starts at the playhead. */
+  Q_INVOKABLE bool copySelected();
+  Q_INVOKABLE void cutSelected();
+  Q_INVOKABLE void paste();
   Q_INVOKABLE void moveSelectedLayer(int direction);
   Q_INVOKABLE void updateSelectedText(const QString &text);
   Q_INVOKABLE void setSelectedColor(const QString &color);
@@ -126,9 +145,13 @@ private:
   bool locked() const { return m_locked && m_locked(); }
   void saveHistory();
   void commit(bool modified = true);
+  /** Adds `edit` a small step away from where it is, keeping it on the
+   *  image, and selects it. */
+  void appendOffset(Frame::Edit edit);
   QPointF sourcePoint(double x, double y) const;
   /** Gives a new mark its times on a video. */
   void timeNewMark(Frame::Edit &edit) const;
+  void orderNewStep(Frame::Edit &edit) const;
   bool showing(const Frame::Edit &edit) const;
   /** With `edgesOnly`, filled areas (boxes, highlights, redactions, blur)
    *  are hit only near their border, so a drawing tool can still start a
@@ -143,6 +166,11 @@ private:
   };
   QVector<EditState> m_undoStates, m_redoStates;
   std::optional<EditState> m_transform;
+  /** The mark as copied, the way each paste steps from it, and how many
+   *  pastes there have been. */
+  std::optional<Frame::Edit> m_copied;
+  QPointF m_pasteStep;
+  int m_pastes = 0;
   bool m_previewing = false;
   int m_selected = -1;
   int m_hiddenEdit = -1;

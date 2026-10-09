@@ -16,8 +16,14 @@ QStringList styleNames() {
 }
 
 static QRect pixelRect(QSize size, QPointF from, QPointF to) {
-  QRectF r(QPointF(from.x() * size.width(), from.y() * size.height()),
-           QPointF(to.x() * size.width(), to.y() * size.height()));
+  // Normalized integer edges can land a few ulps either side of a pixel
+  // after serialization. Do not enlarge those crops by another pixel.
+  const auto pixel = [](double value) {
+    const double rounded = std::round(value);
+    return std::abs(value - rounded) < 1e-7 ? rounded : value;
+  };
+  QRectF r(QPointF(pixel(from.x() * size.width()), pixel(from.y() * size.height())),
+           QPointF(pixel(to.x() * size.width()), pixel(to.y() * size.height())));
   return r.normalized().toAlignedRect().intersected(QRect(QPoint(), size));
 }
 
@@ -131,20 +137,20 @@ QRectF annotationBounds(const Edit &edit, const QImage &source) {
           pixels.height() / source.height()};
 }
 
+QRect cropPixels(QSize size, const QVector<Edit> &edits) {
+  const QRect full(QPoint(), size);
+  QRect region = full;
+  for (const Edit &edit : edits)
+    if (edit.type == "crop")
+      region = pixelRect(size, edit.from, edit.to);
+  return region.width() >= 2 && region.height() >= 2 ? region : full;
+}
+
 QImage cropImage(const QImage &image, const QVector<Edit> &edits) {
   if (image.isNull())
     return image;
-  QRect region(QPoint(), image.size());
-  bool cropped = false;
-  for (const Edit &edit : edits)
-    if (edit.type == "crop") {
-      region = pixelRect(image.size(), edit.from, edit.to);
-      cropped = true;
-    }
-  if (!cropped)
-    return image;
-  return region.width() >= 2 && region.height() >= 2 ? image.copy(region)
-                                                       : image;
+  const QRect region = cropPixels(image.size(), edits);
+  return region == image.rect() ? image : image.copy(region);
 }
 
 // A filled ribbon avoids dark overlaps and keeps a brush stroke one undoable mark.
@@ -183,10 +189,20 @@ static QPainterPath brushRibbon(const Edit &edit, QSize size, double radius) {
 }
 
 QImage applyEdits(const QImage &source, const QVector<Edit> &edits,
-                  bool applyCrop) {
+                  bool applyCrop, QString *error) {
+  if (error) error->clear();
   QImage img = source.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+  if (img.isNull() || !img.bits()) {
+    if (error) *error = "Could not allocate the edited image. Try again with a smaller image.";
+    return {};
+  }
   img.setDevicePixelRatio(1);
-  int step = 0;
+  QVector<const Edit *> steps;
+  for (const Edit &edit : edits)
+    if (edit.type == "step") steps.append(&edit);
+  std::stable_sort(steps.begin(), steps.end(), [](const Edit *a, const Edit *b) {
+    return a->stepOrder < b->stepOrder;
+  });
   for (const Edit &edit : edits) {
     if (edit.type == "crop")
       continue;
@@ -196,6 +212,13 @@ QImage applyEdits(const QImage &source, const QVector<Edit> &edits,
       const int radius = blurRadius(edit, img.size());
       QImage horizontal(region.size(), region.format());
       QImage softened(region.size(), region.format());
+      if (region.isNull() || horizontal.isNull() || softened.isNull()) {
+        QPainter fallback(&img);
+        fallback.setCompositionMode(QPainter::CompositionMode_Source);
+        fallback.fillRect(r, QColor("#151a20"));
+        if (error) *error = "Could not allocate blur buffers. The area was redacted instead. Try again with a smaller image.";
+        continue;
+      }
       for (int y = 0; y < region.height(); ++y) {
         const QRgb *src = reinterpret_cast<const QRgb *>(region.constScanLine(y));
         QRgb *dst = reinterpret_cast<QRgb *>(horizontal.scanLine(y));
@@ -314,7 +337,7 @@ QImage applyEdits(const QImage &source, const QVector<Edit> &edits,
       if (filled) path.closeSubpath();
       stroke(path, filled);
     } else if (edit.type == "step") {
-      ++step;
+      const int step = steps.indexOf(&edit) + 1;
       p.setPen(QPen(Qt::white, unit * 0.7));
       p.setBrush(edit.color);
       p.drawEllipse(a, unit * 5 * markSize, unit * 5 * markSize);

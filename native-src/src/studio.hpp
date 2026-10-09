@@ -1,4 +1,6 @@
 #pragma once
+#include "capture-session.hpp"
+#include "delay-capture.hpp"
 #include "marks.hpp"
 #include "renderer.hpp"
 #include "scroll-capture.hpp"
@@ -76,6 +78,11 @@ class Studio final : public QObject {
   Q_PROPERTY(bool tallImage READ tallImage NOTIFY changed)
   /** True while the selector is set to scroll and stitch what it covers. */
   Q_PROPERTY(bool scrollSelection READ scrollSelection NOTIFY changed)
+  Q_PROPERTY(
+      int delaySeconds READ delaySeconds WRITE setDelaySeconds NOTIFY changed)
+  Q_PROPERTY(int delayRemaining READ delayRemaining NOTIFY changed)
+  Q_PROPERTY(bool delayedCapture READ delayedCapture NOTIFY changed)
+  Q_PROPERTY(bool captureBarHidden READ captureBarHidden WRITE setCaptureBarHidden NOTIFY changed)
   /** The scrolling capture, for the progress control. */
   Q_PROPERTY(ScrollCapture *scrollCapture READ scrollCapture CONSTANT)
   /** Whether the last scrolling capture stopped at the size budget or the end
@@ -111,15 +118,18 @@ class Studio final : public QObject {
   Q_PROPERTY(bool hasLastArea READ hasLastArea NOTIFY changed)
   Q_PROPERTY(MarkDocument *marks READ marks CONSTANT)
   Q_PROPERTY(QVariantList drafts READ drafts NOTIFY changed)
+  Q_PROPERTY(bool draftDirty READ draftDirty NOTIFY changed)
   Q_PROPERTY(bool keepOriginals READ keepOriginals WRITE setKeepOriginals NOTIFY changed)
+  Q_PROPERTY(bool autoSaveScreenshots READ autoSaveScreenshots WRITE setAutoSaveScreenshots NOTIFY changed)
   Q_PROPERTY(bool editing READ editing WRITE setEditing NOTIFY changed)
   /** False until the first-run welcome has been seen or dismissed. */
   Q_PROPERTY(bool welcomed READ welcomed WRITE setWelcomed NOTIFY changed)
   Q_PROPERTY(QSize workingSize READ workingSize NOTIFY changed)
+  Q_PROPERTY(QRectF previewCropBounds READ previewCropBounds NOTIFY changed)
   Q_PROPERTY(QString originalsFolder READ originalsFolder CONSTANT)
   /** The display the pointer is on while selecting, for F. */
   Q_PROPERTY(QString pointerMonitor READ pointerMonitor WRITE setPointerMonitor NOTIFY changed)
-  /** Notify after a quick screenshot is copied and saved. */
+  /** Notify after a quick screenshot is copied. */
   Q_PROPERTY(bool notifications READ notifications WRITE setNotifications NOTIFY changed)
   Q_PROPERTY(QSize sourceSize READ sourceSize NOTIFY changed)
   /** Whether the text in this image can be read: tesseract is installed and
@@ -136,6 +146,13 @@ public:
   bool hasImage() const { return !m_original.isNull(); }
   bool tallImage() const;
   bool scrollSelection() const { return m_scrollSelection; }
+  bool captureBarHidden() const { return m_captureBarHidden; }
+  void setCaptureBarHidden(bool hidden) {
+    if (m_captureBarHidden == hidden)
+      return;
+    m_captureBarHidden = hidden;
+    emit changed();
+  }
   ScrollCapture *scrollCapture() { return m_scrollCapture; }
   bool scrollReachedLimit() const { return m_scrollReachedLimit; }
   bool scrollReachedEnd() const { return m_scrollReachedEnd; }
@@ -169,6 +186,12 @@ public:
   Q_INVOKABLE void makeCodeCard(const QString &text, const QString &language = "txt", int pixels = 16, bool numbers = true);
   QString captureMonitor() const { return m_captureMonitor; }
   QString savedPath() const { return m_savedPath; }
+  /** What the desktop notification says when a quick capture finishes.
+   *  Empty summary: nothing was copied, so stay quiet. */
+  struct Notice {
+    QString summary, body, image;
+  };
+  Notice finishNotice() const;
   QString recoveryAction() const;
   QString originalsSummary() const { return m_originalsSummary; }
   int originalsCount() const { return m_originalsCount; }
@@ -179,12 +202,16 @@ public:
   /** Whether each accepted capture also keeps a private, unedited copy. */
   bool keepOriginals() const;
   void setKeepOriginals(bool);
+  bool autoSaveScreenshots() const;
+  void setAutoSaveScreenshots(bool);
   bool editing() const { return m_editing; }
   bool welcomed() const;
   /** The cropped image the editor shows, and the whole capture, in pixels. */
   QSize workingSize() const { return m_workingSize; }
+  QRectF previewCropBounds() const { return m_previewCropBounds; }
   QSize sourceSize() const { return m_original.size(); }
   bool canReadText() const { return m_reading || m_textRead; }
+  bool draftDirty() const { return m_draftDirty && !m_demo && hasImage(); }
   int secretCount() const { return uncoveredSecrets().size(); }
   QString textNote() const;
   QString originalsFolder() const;
@@ -215,19 +242,23 @@ public:
   /** Returns the studio to its start screen. Drafts are kept. */
   Q_INVOKABLE void closeImage();
   Q_INVOKABLE void accept();
+  Q_INVOKABLE void cancelPendingAccept() { m_pendingFinish = -1; }
+  Q_INVOKABLE void finishDraftRecovery();
   Q_INVOKABLE void retryOutput();
   Q_INVOKABLE void clearOriginals();
   Q_INVOKABLE void setOutputDirectory(const QUrl &url);
   Q_INVOKABLE void revealSaved();
   Q_INVOKABLE void resumeDraft(const QString &id);
   Q_INVOKABLE void deleteDraft(const QString &id);
-  Q_INVOKABLE void saveDraftNow();
+  Q_INVOKABLE bool saveDraftNow();
+  Q_INVOKABLE void discardUnsavedDraft();
   bool recordingSelection() const { return m_recordingSelection; }
   void setRecordingSelection(bool value) {
     m_recordingSelection = value;
     emit changed();
   }
   void leaveQuickMode() {
+    cancelPendingAccept();
     m_quickMode = false;
     m_recordingSelection = false;
     m_scrollSelection = false;
@@ -248,6 +279,28 @@ public:
   /** The display quick-mode surfaces (chooser, recording setup) open on. */
   void setCaptureMonitor(const QString &monitor) { m_captureMonitor = monitor; }
   Q_INVOKABLE void capture(bool region, int monitor = 0);
+  int delaySeconds() const { return m_delaySeconds; }
+  int delayRemaining() const { return m_delay.remaining(); }
+  bool delayedCapture() const { return m_delay.active(); }
+  quint64 delayGeneration() const { return m_delay.generation(); }
+  bool currentDelay(quint64 generation) const {
+    return m_delay.current(generation);
+  }
+  void setDelaySeconds(int seconds);
+  void reportDelayFailure();
+  quint64 beginDelayCleanup();
+  void finishDelayCleanup(quint64 request, bool restored);
+  bool currentCaptureRequest(quint64 request) const {
+    return request == m_captureRequestGeneration;
+  }
+  Q_INVOKABLE void delayCapture(int seconds = -1);
+  Q_INVOKABLE void cancelDelayedCapture() { m_delay.cancel(); }
+  void delayDesktopCleared(quint64 generation, bool success) {
+    m_delay.desktopCleared(generation, success);
+  }
+  void delayBadgeCleared(quint64 generation, bool success) {
+    m_delay.badgeCleared(generation, success);
+  }
   Q_INVOKABLE void repeatLastArea();
   Q_INVOKABLE void finishSelection(const QString &monitor, double x1, double y1,
                                    double x2, double y2);
@@ -271,16 +324,26 @@ public:
   Q_INVOKABLE void scrollCancelled();
   Q_INVOKABLE void cancelSelection();
   Q_INVOKABLE void chooseFinish(int style);
+  /** Save and copy the selected finish, regardless of automatic saving. */
+  Q_INVOKABLE void saveQuick();
   Q_INVOKABLE void openEditor();
   Q_INVOKABLE void showFinishes();
+  /** Copy the capture with its edits and chosen finish, without saving it. */
+  Q_INVOKABLE void copyQuick();
   Q_INVOKABLE void dismissQuick();
   /** Redacts every possible secret that is not covered yet. */
   Q_INVOKABLE void hideSecrets();
   /** Copies the text in the image, once it has been read. */
   Q_INVOKABLE void copyText();
+  Q_INVOKABLE void cancelTextCopy();
 signals:
   void changed();
   void hideStudio();
+  void delayHideRequested(quint64 generation);
+  void delayBadgeRequested();
+  void delayClearRequested(quint64 generation);
+  void delayCancelled();
+  void delayFailed();
   void showStudio();
   void selectionReady(const QStringList &monitors);
   void selectionDone();
@@ -291,6 +354,7 @@ signals:
   void chooserRequested();
   void editorRequested();
   void dismissRequested();
+  void draftSaveFailed();
   void captureFailed();
   /** The first frame is stitched; the progress control may appear on
    *  `monitor` at `bounds` (logical, desktop layout). */
@@ -302,18 +366,29 @@ signals:
   void recordOptionsRequested();
 
 private:
+  friend class DelayTest;
+  Capture::Grab m_captureGrab;
+  quint64 m_captureRequestGeneration = 0;
+  bool m_delayCleanupPending = false;
+  std::function<void()> m_captureAfterCleanup;
+  void afterDelayCleanup(std::function<void()> capture);
+  void beginDelayedCapture(int seconds, bool fromSelection);
+  void acquireCapture(bool region, int monitor, bool repeat,
+                      quint64 delayGeneration);
   void loadImage(QImage image, QString name, bool demo);
   void scheduleRender();
   void persistOptions();
   void refreshDrafts();
   void invalidateSaved();
-  void captureImpl(bool region, int monitor, bool repeat);
+  void finishQuick(int style, bool save);
+  void captureImpl(bool region, int monitor, bool repeat,
+                   quint64 delayGeneration = 0);
   /** Starts reading the text in the current image in the background, and
    *  forgets what was read from the previous one. */
   void startReading();
   void stopReading();
   QVector<QRectF> uncoveredSecrets() const;
-  void writeText();
+  void writeText(const QString &text);
   ImageStore *m_store;
   // Preview workers must finish before this studio and the GUI application
   // are destroyed. The global pool otherwise outlives Qt's GUI resources.
@@ -325,6 +400,7 @@ private:
   QSize m_lastAreaPixels;
   QString m_lastAreaMonitor;
   QSize m_workingSize;
+  QRectF m_previewCropBounds;
   QMargins m_edgeRoom;
   MarkDocument m_marks;
   QVariantList m_drafts;
@@ -335,12 +411,17 @@ private:
   QString m_exportFormat = "png";
   int m_exportScale = 1;
   QString m_finishName;
+  QString m_copyPreview;
   QString m_name, m_status, m_directory, m_savedPath, m_backupPath,
       m_originalsSummary;
   int m_revision = 0, m_generation = 0;
   int m_originalsCount = 0;
   bool m_busy = false, m_rendering = false, m_demo = true;
   bool m_quickMode = false, m_recordingSelection = false;
+  bool m_captureBarHidden = false;
+  int m_delaySeconds = 3;
+  QString m_delayStatus;
+  DelayCapture m_delay{this};
   bool m_scrollSelection = false, m_scrollReachedLimit = false,
        m_scrollReachedEnd = false;
   /** The scrolling capture and where its progress control goes. */
@@ -348,15 +429,17 @@ private:
   QString m_scrollMonitor;
   QRect m_scrollBounds;
   bool m_inlineScroll = false;
-  bool m_copyPending = false, m_backupPending = false;
+  bool m_copyPending = false, m_backupPending = false, m_failedDraftExport = false;
   QString m_quickState = "idle", m_captureMonitor, m_pointerMonitor;
   int m_pendingFinish = -1;
   bool m_editing = false, m_thumbnailsStale = false, m_returnToStudio = false;
   // What OCR found, only ever kept in memory. Secrets are fractions of the
   // whole image, already grown to cover their edges.
   QVector<QRectF> m_secrets;
-  QString m_text, m_textNote;
+  QString m_textNote;
   bool m_reading = false, m_textRead = false, m_copyTextPending = false;
   int m_readGeneration = 0;
   std::shared_ptr<std::atomic_bool> m_readCancel;
+  int m_copyTextGeneration = 0;
+  std::shared_ptr<std::atomic_bool> m_copyTextCancel;
 };

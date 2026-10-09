@@ -1,3 +1,4 @@
+#include "history.hpp"
 #include "video.hpp"
 #include "studio.hpp"
 #include <QDataStream>
@@ -11,6 +12,7 @@
 #include <QJsonObject>
 #include <QLocale>
 #include <QProcess>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QUuid>
@@ -18,6 +20,8 @@
 #include <QVector>
 #include <algorithm>
 #include <cmath>
+#include <csignal>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 
 static bool decodesVideoFrame(const QString &path, const QStringList &seek = {}) {
@@ -165,6 +169,18 @@ QStringList videoMarkFilters(const QVector<Frame::Edit> &edits, QSize size,
   return chains;
 }
 
+static void removeAbandonedExports(const QString &directory) {
+  static const QRegularExpression pattern(
+      R"(^\..+-edited(?:-(?:[2-9]|[1-9][0-9]+))?-[0-9a-f]{6}\.part\.(mp4|gif)$)");
+  const auto cutoff = QDateTime::currentDateTimeUtc().addSecs(-3600);
+  for (const auto &file : QDir(directory).entryInfoList(
+           QDir::Files | QDir::Hidden | QDir::NoSymLinks)) {
+    if (pattern.match(file.fileName()).hasMatch() &&
+        file.lastModified() < cutoff)
+      QFile::remove(file.absoluteFilePath());
+  }
+}
+
 Video::Video(QObject *parent) : QObject(parent) {
   m_draftTimer.setSingleShot(true);
   m_draftTimer.setInterval(250);
@@ -189,9 +205,13 @@ Video::Video(QObject *parent) : QObject(parent) {
                                        QStandardPaths::MoviesLocation) +
                                        "/Omaframe")
           .toString();
+  removeAbandonedExports(m_directory);
   // x264 uses every core; run it below normal priority so the desktop stays
   // responsive during an export.
-  m_encoder.setChildProcessModifier([] { setpriority(PRIO_PROCESS, 0, 10); });
+  m_encoder.setChildProcessModifier([] {
+    ::prctl(PR_SET_PDEATHSIG, SIGKILL);
+    setpriority(PRIO_PROCESS, 0, 10);
+  });
   connect(&m_encoder, &QProcess::readyReadStandardError, this, [this] {
     m_error = (m_error + QString::fromUtf8(m_encoder.readAllStandardError()))
                   .right(2400);
@@ -962,6 +982,7 @@ void Video::revealGif() {
 void Video::setOutputDirectory(const QUrl &url) {
   if (m_busy || !url.isLocalFile())
     return;
+  if (m_directory != url.toLocalFile()) History::rememberFolder(m_directory);
   m_directory = url.toLocalFile();
   QSettings().setValue("videoDirectory", m_directory);
   emit changed();

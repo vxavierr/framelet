@@ -26,6 +26,15 @@ private slots:
     const QRect card((plain.width()-base.width())/2,(plain.height()-base.height())/2,base.width(),base.height());
     QCOMPARE(plain.copy(card),grain.copy(card));
   }
+  void missingRasterReportsRenderFailure() {
+    QString error;
+    QVERIFY(Frame::applyEdits({}, {{"blur", {0, 0}, {1, 1}}}, true, &error).isNull());
+    QVERIFY(!error.isEmpty());
+    QImage source(40, 30, QImage::Format_RGB32);
+    source.fill(Qt::white);
+    QVERIFY(!Frame::applyEdits(source, {{"blur", {0, 0}, {1, 1}}}, true, &error).isNull());
+    QVERIFY(error.isEmpty());
+  }
   void contrastOutlinesKeepLightStrokesVisible() {
     QImage white(600, 400, QImage::Format_ARGB32_Premultiplied);
     white.fill(Qt::white);

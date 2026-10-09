@@ -35,9 +35,9 @@ Button {
         radius: theme.radius
         color: control.danger ? (control.down ? theme.mix(theme.urgent, theme.background, 0.18) : control.hovered ? theme.mix(theme.urgent, theme.text, 0.14) : theme.urgent)
              : control.primary ? (control.down ? theme.mix(theme.accent, theme.background, 0.18) : control.hovered ? theme.mix(theme.accent, theme.text, 0.14) : theme.accent)
-             : control.down ? theme.pressedFill : control.selected ? theme.selectedFill : (control.hovered || control.activeFocus) ? theme.hoverFill : control.quiet ? "transparent" : theme.controlFill
-        border.width: theme.controlBorder.a > 0 ? (control.activeFocus ? 2 : control.primary || control.danger || control.selected || (control.quiet && !control.hovered) ? 0 : 1) : 0
-        border.color: control.activeFocus ? theme.focusBorder : control.hovered ? theme.hoverBorder : theme.controlBorder
+             : control.down ? theme.pressedFill : control.selected ? theme.selectedFill : control.hovered ? theme.hoverFill : control.quiet ? "transparent" : theme.controlFill
+        border.width: theme.controlBorder.a > 0 ? (control.visualFocus ? 2 : control.primary || control.danger || control.selected || (control.quiet && !control.hovered) ? 0 : 1) : 0
+        border.color: control.visualFocus ? theme.focusBorder : control.hovered ? theme.hoverBorder : theme.controlBorder
         Behavior on color { ColorAnimation { duration: 90 } }
     }
     contentItem: Item {

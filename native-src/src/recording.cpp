@@ -37,6 +37,47 @@ static QByteArray command(const QString &program, const QStringList &args,
   return p.exitCode() == 0 ? p.readAllStandardOutput() : QByteArray();
 }
 
+static QPair<QString, QString> defaultMonitor() {
+  const QString sink = QString::fromUtf8(command("pactl", {"get-default-sink"})).trimmed();
+  if (sink.isEmpty()) return {};
+  const auto sinks = QJsonDocument::fromJson(command("pactl", {"-f", "json", "list", "sinks"})).array();
+  for (const auto &value : sinks) {
+    const auto info = value.toObject();
+    if (info.value("name").toString() == sink)
+      return {info.value("monitor_source").toString(sink + ".monitor"), info.value("description").toString(sink)};
+  }
+  return {sink + ".monitor", sink};
+}
+
+AudioSnapshot Recorder::audioPreview() const {
+  const auto mic = m_mics.value(m_mic).toMap();
+  return {mic.value("id").toString(), m_defaultSink,
+          mic.value("label").toString(), m_sinkLabel};
+}
+QString Recording::failureReason(int exitCode, QProcess::ExitStatus status,
+                                 const QString &output, bool noFrames) {
+  if (noFrames)
+    return "The recorder did not capture any video.";
+  const QString text = output.toLower();
+  if (text.contains("no space left"))
+    return "The disk is full.";
+  if (text.contains("permission denied") || text.contains("not permitted"))
+    return "The recorder was not allowed to capture the screen or write the "
+           "file.";
+  if (status != QProcess::NormalExit)
+    return "The recorder stopped unexpectedly.";
+  return "The recorder stopped with an error (exit code " +
+         QString::number(exitCode) + ").";
+}
+QString Recording::keptNote(const QString &path) {
+  return "The partial recording was kept as " + QFileInfo(path).fileName() +
+         ".";
+}
+QStringList Recording::arguments(const QString &target, const QString &path,
+                                 const AudioSnapshot &audio, bool cursor) {
+  return arguments(target, path, audio.sound, audio.mic, cursor);
+}
+
 Recording::Placement Recording::placeStop(const QList<Display> &displays,
                                           const QString &capturedDisplay,
                                           const QRect &capture, QSize size) {
@@ -162,7 +203,7 @@ Recording::recorderCommand(const QStringList &arguments) {
                       "omaframe-recorder"} +
               arguments};
 }
-Recorder::Recorder(QObject *parent) : QObject(parent) {
+Recorder::Recorder(QObject *parent, int stopGraceMs) : QObject(parent) {
   connect(&m_webcam, &Webcam::changed, this, &Recorder::changed);
   connect(
       &m_webcam, &Webcam::trackFinished, this,
@@ -198,6 +239,18 @@ Recorder::Recorder(QObject *parent) : QObject(parent) {
   // If Omaframe itself dies, ask the recorder to finish its file instead of
   // leaving an orphaned capture with an unwritten MP4 index.
   m_process.setChildProcessModifier([] { ::prctl(PR_SET_PDEATHSIG, SIGINT); });
+  m_stopTimeout.setSingleShot(true);
+  m_stopTimeout.setInterval(std::max(1, stopGraceMs));
+  connect(&m_stopTimeout, &QTimer::timeout, this, [this] {
+    if (m_state != "stopping" || m_process.state() == QProcess::NotRunning)
+      return;
+    m_canForceStop = true;
+    m_status = "Still finishing. Stop again to force-stop. "
+               "The file may be incomplete.";
+    emit changed();
+    if (!hasControl())
+      emit setupRequested();
+  });
   m_tick.setInterval(500);
   connect(&m_tick, &QTimer::timeout, this, &Recorder::changed);
   m_pauseTimeout.setSingleShot(true);
@@ -285,11 +338,24 @@ Recorder::Recorder(QObject *parent) : QObject(parent) {
           (now.tv_sec * 1000000LL + now.tv_nsec / 1000 - firstFrameUs) / 1000;
       m_recordedMs = lag >= 0 && lag < 1000 ? lag : 0;
       m_clock.restart();
-      if (m_webcam.enabled())
-        m_webcam.startTrack(m_path + "-webcam.mp4", [this] {
-          return m_state == "recording" ? m_recordedMs + m_clock.elapsed()
-                                        : qint64(-1);
-        });
+      if (m_webcam.enabled() &&
+          !m_webcam.startTrack(m_path + "-webcam.mp4", [this] {
+            return m_state == "recording" ? m_recordedMs + m_clock.elapsed()
+                                          : qint64(-1);
+          })) {
+        m_cameraWarning = "The camera was unavailable when recording started. "
+                          "The camera was not recorded; the video is screen-only.";
+        m_status = "Recording · camera unavailable. " + m_cameraWarning;
+        QSaveFile metadata(m_path + ".camera.json");
+        const auto bytes = QJsonDocument(QJsonObject{{"version", 1},
+                                                    {"missing", true}})
+                               .toJson(QJsonDocument::Compact);
+        if (metadata.open(QIODevice::WriteOnly) &&
+            metadata.setPermissions(QFile::ReadOwner | QFile::WriteOwner)) {
+          if (metadata.write(bytes) == bytes.size())
+            metadata.commit();
+        }
+      }
       m_tick.start();
       m_startupCheck.stop();
       refreshBar();
@@ -398,7 +464,7 @@ QString Recorder::targetLabel() const {
       .arg(place(m_screen));
 }
 bool Recorder::canStart() const {
-  return !active() && m_state != "loading" && hasTarget() && !m_otherRecorder &&
+  return !active() && !m_webcam.finishing() && !m_incompleteReady && m_state != "loading" && hasTarget() && !m_otherRecorder &&
          (hasControl() || stopShortcut()) && (!m_microphone || m_mic >= 0) &&
          (!m_desktop || !m_defaultSink.isEmpty()) && m_webcam.ready();
 }
@@ -418,7 +484,7 @@ QString Recorder::controlLocation() const {
                 : QString("Stop stays just outside the recorded area.")) +
            also;
   if (stopShortcut())
-    return "No Stop button is shown, so nothing from Omaframe is in the "
+    return "No Stop button is shown, so nothing from Framelet is in the "
            "video. Stop with " +
            m_stopKey +
            (m_barStop ? " or the recording icon in the Omarchy bar." : ".") +
@@ -434,7 +500,7 @@ void Recorder::updateSetupStatus() {
     return;
   m_status = m_otherRecorder
                  ? "Another screen recorder is running. Stop it before "
-                   "starting an Omaframe recording."
+                   "starting a Framelet recording."
              : m_microphone && m_mic < 0
                  ? "Your selected microphone is unavailable. Choose a "
                    "microphone or turn it off."
@@ -486,7 +552,7 @@ void Recorder::prepare(bool showSetup) {
   struct Result {
     QList<Recording::Display> displays;
     QVariantList mics;
-    QString sink, defaultMic, stopKey, pauseKey;
+    QString sink, sinkLabel, defaultMic, stopKey, pauseKey;
     bool other = false;
   };
   auto *watcher = new QFutureWatcher<Result>(this);
@@ -499,6 +565,7 @@ void Recorder::prepare(bool showSetup) {
             m_displays = r.displays;
             m_mics = r.mics;
             m_defaultSink = r.sink;
+            m_sinkLabel = r.sinkLabel;
             m_otherRecorder = r.other;
             m_stopKey = r.stopKey;
             m_pauseKey = r.pauseKey;
@@ -560,10 +627,9 @@ void Recorder::prepare(bool showSetup) {
     }
     r.defaultMic =
         QString::fromUtf8(command("pactl", {"get-default-source"})).trimmed();
-    auto sink =
-        QString::fromUtf8(command("pactl", {"get-default-sink"})).trimmed();
-    if (!sink.isEmpty())
-      r.sink = sink + ".monitor";
+    const auto monitor = defaultMonitor();
+    r.sink = monitor.first;
+    r.sinkLabel = monitor.second;
     r.other = !command("pgrep", {"-f", "^([^ ]*/)?gpu-screen-recorder( |$)"})
                    .isEmpty();
     const auto binds =
@@ -697,6 +763,8 @@ void Recorder::start() {
   m_error.clear();
   m_frameTimedOut = false;
   m_path.clear();
+  m_finalPath.clear();
+  m_incompleteReady = false;
   m_recordedMs = 0;
   m_clock.invalidate();
   QSettings s;
@@ -726,6 +794,7 @@ void Recorder::launch() {
     return;
   m_screenReady = false;
   m_cameraWarning.clear();
+  m_canForceStop = m_forcedStop = false;
   m_state = "starting";
   m_status = "Starting recorder…";
   // The countdown sits on the recorded display. Take it down before capture.
@@ -735,7 +804,12 @@ void Recorder::launch() {
   const int generation = m_generation;
   struct Check {
     QString error;
+    AudioSnapshot audio;
   };
+  AudioSnapshot selected = audioPreview();
+  if (!m_microphone) selected.mic.clear();
+  if (!m_desktop) selected.sound.clear();
+  const bool soundOn = m_desktop;
   const auto target = m_capture;
   const bool hasControl = this->hasControl();
   const QString controlDisplay = m_control.display;
@@ -765,13 +839,12 @@ void Recorder::launch() {
           fail("Could not create the recording folder.");
           return;
         }
-        m_path = dir + "/Recording-" +
+        m_finalPath = dir + "/Recording-" +
                  QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss") +
                  "-" + QUuid::createUuid().toString(QUuid::Id128).left(6) +
                  ".mp4";
-        const QString mic =
-            m_microphone ? m_mics.value(m_mic).toMap().value("id").toString()
-                         : QString();
+        m_path = Recording::partPath(m_finalPath);
+        m_audioSession = r.audio;
         m_controlDir = std::make_unique<QTemporaryDir>(
             QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) +
             "/omaframe-recorder-XXXXXX");
@@ -782,15 +855,14 @@ void Recorder::launch() {
         m_clock.start();
         const auto [program, arguments] = Recording::recorderCommand(
             Recording::arguments(m_target, m_path,
-                                 m_desktop ? m_defaultSink : QString(), mic,
-                                 m_cursor) +
+                                 m_audioSession, m_cursor) +
             QStringList{"-ipc", m_controlDir->filePath("control.sock")});
         m_process.start(program, arguments);
         m_startupCheck.start();
         emit changed();
       });
   watcher->setFuture(QtConcurrent::run([target, hasControl, controlDisplay,
-                                       capturedDisplay, bounds] {
+                                       capturedDisplay, bounds, selected, soundOn] {
     if (!command("pgrep", {"-f", "^([^ ]*/)?gpu-screen-recorder( |$)"})
              .isEmpty())
       return Check{"Another screen recorder is running. Stop it first."};
@@ -818,7 +890,7 @@ void Recorder::launch() {
           for (auto value : level.toArray()) {
             const auto layer = value.toObject();
             const QString name = layer.value("namespace").toString();
-            if (!name.startsWith("omaframe-"))
+            if (!name.startsWith("framelet-"))
               continue;
             QRect actual(layer.value("x").toInt(), layer.value("y").toInt(),
                          layer.value("w").toInt(), layer.value("h").toInt());
@@ -826,7 +898,7 @@ void Recorder::launch() {
             if (!display.isEmpty() && !display.contains(actual) &&
                 display.contains(actual.translated(display.topLeft())))
               actual.translate(display.topLeft());
-            if (name == "omaframe-record-control" && hasControl &&
+            if (name == "framelet-record-control" && hasControl &&
                 mon.key() == controlDisplay) {
               found = !actual.isEmpty();
               if (keepOut.intersects(actual))
@@ -835,7 +907,7 @@ void Recorder::launch() {
               continue;
             }
             if (mon.key() == capturedDisplay && keepOut.intersects(actual))
-              problem = "An Omaframe window is still over the recording "
+              problem = "A Framelet window is still over the recording "
                         "area. Try again.";
           }
       }
@@ -854,7 +926,20 @@ void Recorder::launch() {
             .isEmpty())
       return Check{"The stop shortcut is no longer active. Set it up again "
                    "before recording this area."};
-    return Check{};
+    AudioSnapshot audio = selected;
+    if (soundOn) {
+      const auto monitor = defaultMonitor();
+      audio.sound = monitor.first; audio.soundLabel = monitor.second;
+      if (audio.sound.isEmpty()) return Check{"Desktop audio is unavailable. Reconnect the output or turn sound off."};
+    }
+    if (!audio.mic.isEmpty()) {
+      bool found = false;
+      const auto sources = QJsonDocument::fromJson(command("pactl", {"-f", "json", "list", "sources"})).array();
+      for (const auto &value : sources)
+        found |= value.toObject().value("name").toString() == audio.mic;
+      if (!found) return Check{"The selected microphone is unavailable. Reconnect it or turn the microphone off."};
+    }
+    return Check{{}, audio};
   }));
 }
 void Recorder::freezeClock() {
@@ -910,11 +995,22 @@ void Recorder::finishPause(bool success, const QString &error, bool uncertain) {
   emit pauseFinished(success);
 }
 void Recorder::stop() {
+  if (m_state == "stopping") {
+    if (m_canForceStop && m_process.state() != QProcess::NotRunning) {
+      m_canForceStop = false;
+      m_forcedStop = true;
+      m_status = "Force-stopping. The file may be incomplete.";
+      m_process.kill();
+      emit changed();
+    }
+    return;
+  }
   if (m_state == "countdown" ||
       (m_state == "starting" && m_process.state() == QProcess::NotRunning)) {
     // Nothing was captured yet. Cancel and go back to what the user was doing.
     ++m_generation;
     m_countdownTick.stop();
+    m_webcam.suspend();
     m_state = "idle";
     emit hideRequested();
     emit changed();
@@ -931,10 +1027,11 @@ void Recorder::stop() {
   m_startupCheck.stop();
   m_tick.stop();
   emit changed();
-  // Stop only our child, and let it finish writing the container. Never pkill
-  // other recorders or force-kill a recording after an arbitrary deadline.
-  if (m_process.processId() > 0)
+  // Let our child finish the container before offering a manual force-stop.
+  if (m_process.processId() > 0) {
     ::kill(static_cast<pid_t>(m_process.processId()), SIGINT);
+    m_stopTimeout.start();
+  }
 }
 /** Removes a recording that holds no usable video, so a failed start does
  *  not leave an unplayable file behind. */
@@ -943,6 +1040,8 @@ static bool discardEmpty(const QString &path) {
   return info.exists() && info.size() < 64 * 1024 && QFile::remove(path);
 }
 void Recorder::validateResult(int code, QProcess::ExitStatus exitStatus) {
+  m_stopTimeout.stop();
+  m_canForceStop = false;
   m_webcam.finishTrack();
   finishPause(false);
   freezeClock();
@@ -952,12 +1051,28 @@ void Recorder::validateResult(int code, QProcess::ExitStatus exitStatus) {
   QFile::remove(m_path + ".ts");
   refreshBar();
   emit hideRequested();
+  if (m_forcedStop) {
+    m_screenReady = false;
+    m_state = "idle";
+    m_status = "Recording force-stopped. The file may be incomplete "
+               "and has not been checked.";
+    if (!QFileInfo::exists(m_path))
+      m_status += " No recording file was created.";
+    m_incompleteReady = true;
+    completeWhenCameraReady();
+    emit changed();
+    emit setupRequested();
+    return;
+  }
   if (code != 0 || exitStatus != QProcess::NormalExit) {
+    // The recorder's own words are for the log, not the window.
+    qWarning().noquote() << "Recorder failed (exit code" << code
+                         << (exitStatus == QProcess::NormalExit ? "normal exit"
+                                                                : "crashed")
+                         << "):" << m_error.simplified().right(500);
     const bool discarded = discardEmpty(m_path);
-    fail("Recording failed. " + m_error.simplified().right(500) +
-         (discarded ? " No file was kept."
-          : QFileInfo::exists(m_path) ? " The partial file is " + m_path
-                                      : QString()));
+    fail(Recording::failureReason(code, exitStatus, m_error, m_frameTimedOut) +
+         (discarded ? " No file was kept." : QString()));
     return;
   }
   m_state = "stopping";
@@ -971,7 +1086,7 @@ void Recorder::validateResult(int code, QProcess::ExitStatus exitStatus) {
     const QString error = watcher->result();
     watcher->deleteLater();
     if (!error.isEmpty()) {
-      fail(error + (QFileInfo::exists(m_path) ? " The file is " + m_path : QString()));
+      fail(error);
       return;
     }
     m_screenReady = true;
@@ -1045,9 +1160,30 @@ void Recorder::validateResult(int code, QProcess::ExitStatus exitStatus) {
 }
 
 void Recorder::completeWhenCameraReady() {
-  if (!m_screenReady || m_webcam.finishing())
+  if ((!m_screenReady && !m_incompleteReady) || m_webcam.finishing())
     return;
-  m_screenReady = false;
+  const bool incomplete = m_incompleteReady;
+  m_screenReady = m_incompleteReady = false;
+  const auto published = Recording::publishPart(m_path, m_finalPath, incomplete);
+  if (published.isEmpty()) {
+    if (!incomplete) {
+      m_state = "failed";
+      m_status = "Could not publish the recording. The unfinished file is "
+                 "still in the recording folder.";
+      emit setupRequested();
+    } else if (QFileInfo::exists(m_path)) {
+      m_status += " It could not be renamed and is still in the recording "
+                  "folder.";
+    }
+    emit changed();
+    return;
+  }
+  m_path = published;
+  if (incomplete) {
+    m_status += " " + Recording::keptNote(m_path);
+    emit changed();
+    return;
+  }
   m_state = "saved";
   m_status = m_cameraWarning.isEmpty() ? "Recording saved."
                                        : "Recording saved. " + m_cameraWarning;
@@ -1064,6 +1200,10 @@ void Recorder::fail(const QString &message) {
   m_pending = {};
   m_state = "failed";
   m_status = message;
+  if (!m_finalPath.isEmpty() && QFileInfo::exists(m_path)) {
+    m_incompleteReady = true;
+    completeWhenCameraReady();
+  }
   emit hideRequested();
   emit changed();
   emit setupRequested();
