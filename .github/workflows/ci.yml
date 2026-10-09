@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Arch build and headless tests
+    runs-on: ubuntu-latest
+    container: archlinux:base
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel cmake ninja pkgconf git python \
+            qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-wayland qt6-imageformats bash \
+            layer-shell-qt wayland wayland-protocols libpulse \
+            ffmpeg ttf-dejavu desktop-file-utils
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Plugin manifest
+        run: |
+          python - <<'PY'
+          import json
+          m = json.load(open("manifest.json"))
+          assert m["id"] == "vxavierr.framelet", m["id"]
+          for entry in m["entryPoints"].values():
+              open(entry).close()
+          version = open("native-src/CMakeLists.txt").read().split("project(framelet VERSION ")[1].split()[0]
+          assert m["version"] == version, (m["version"], version)
+          print("manifest", m["version"])
+          PY
+
+      - name: Configure
+        run: cmake -S native-src -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build
+        run: cmake --build build --parallel 2
+
+      - name: Headless tests
+        run: ctest --test-dir build -L headless --output-on-failure --no-tests=error --output-junit test-results.xml
+
+      - name: OCR pattern tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          ./build/ocr-tests \
+            findsEachKind ignoresNearMisses joinsTokensOcrSplit \
+            hidesAWholePrivateKey findsAKeyBodyWithoutItsHeader readsTesseractTsv \
+            -o -,txt -o build/ocr-patterns.xml,junitxml
+
+      - name: Plugin build script
+        run: |
+          ./build.sh
+          test -x native/capture-engine
+
+      - name: Check install layout
+        run: |
+          DESTDIR="$PWD/build/install" cmake --install build
+          test -x build/install/usr/bin/framelet
+          test -s build/install/usr/share/icons/hicolor/scalable/apps/io.github.vxavierr.framelet.svg
+          test -s build/install/usr/share/licenses/framelet/LICENSE
+          test -s build/install/usr/share/licenses/framelet/OMASNAP-LICENSE
+          desktop-file-validate build/install/usr/share/applications/io.github.vxavierr.framelet.desktop
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: test-results
+          path: |
+            build/test-results.xml
+            build/ocr-patterns.xml
+            build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+          retention-days: 7

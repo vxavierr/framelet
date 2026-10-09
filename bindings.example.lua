@@ -5,6 +5,10 @@
 hl.bind("PRINT", function()
   hl.dispatch(hl.dsp.exec_cmd([[omarchy-shell shell summon vxavierr.framelet '{"capture":"smart"}']]))
 end, { description = "Framelet capture" })
+-- Shift+Print waits 3, 5 or 10 seconds (the last choice) so menus and hover states stay open.
+hl.bind("SHIFT + PRINT", function()
+  hl.dispatch(hl.dsp.exec_cmd([[omarchy-shell shell summon vxavierr.framelet '{"capture":"delay"}']]))
+end, { description = "Framelet delayed capture" })
 
 hl.define_submap("framelet", function()
   local function chord(key)

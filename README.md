@@ -9,14 +9,15 @@
 
 ## Capture in one flow
 
-Select a region or window. Add an arrow, a note or a brushstroke directly to the frozen capture. Press **Super+C** to copy or **Super+S** to save. There is no extra editor window in the normal capture flow.
+Select a region or window. Add an arrow, a note or a brushstroke directly to the frozen capture. Press **Super+C** to copy the image, or **Super+S** to save it and put its path on the clipboard. There is no extra editor window in the normal capture flow.
 
 ![The real Framelet capture overlay, with annotations on a sample note](docs/media/annotations.png)
 
 - **Explain the detail.** Arrows, shapes, text, highlights, step numbers, crop, blur and redaction.
 - **Give it a gesture.** A smooth brush with tapered ends, adjustable width and opacity. A uniform pen remains available.
 - **Find your palette.** Atelier, Graphite and Botanical; five editable colours and your own saved palettes.
-- **Capture the whole story.** Automatic scrolling capture stitches a scrollable window into one tall image.
+- **Capture the whole story.** Automatic scrolling capture stitches a scrollable window into one tall image. A delay timer keeps menus and hover states open.
+- **Find it later.** History lists saved captures, recordings and editable drafts by day. Files are named by date and time.
 - **Finish before sharing.** Paper, a dark backing or a gallery mat; custom backgrounds, padding, corners, shadows and reusable looks.
 - **Keep it local.** OCR, code cards, image composition and PNG/JPEG export at 1–3×. No accounts or image uploads.
 
@@ -49,7 +50,7 @@ On Arch/Omarchy, install the development libraries and clipboard support:
 ```bash
 sudo pacman -S --needed base-devel cmake ninja pkgconf \
   qt6-base qt6-declarative qt6-multimedia qt6-svg qt6-wayland \
-  layer-shell-qt wayland wayland-protocols wl-clipboard
+  layer-shell-qt wayland wayland-protocols libpulse wl-clipboard
 ```
 
 Optional tools:
@@ -59,6 +60,7 @@ Optional tools:
 | OCR | `tesseract`, plus the language data you need |
 | Code highlighting | `bat` |
 | Screen recording | `gpu-screen-recorder` and `ffmpeg` |
+| WebP images | `qt6-imageformats` |
 
 ### 2. Add and enable Framelet
 
@@ -78,7 +80,7 @@ The build script performs no downloads, package installation or privileged syste
 
 ### 3. Set up your capture key
 
-The bar button works after the engine is built. To use Print and **Super+C/S** with Hyprland, merge [bindings.example.lua](bindings.example.lua) into your existing `~/.config/hypr/bindings.lua`.
+The bar button works after the engine is built. To use Print, Shift+Print (delayed capture) and **Super+C/S** with Hyprland, merge [bindings.example.lua](bindings.example.lua) into your existing `~/.config/hypr/bindings.lua`.
 
 That example includes the `framelet` submap that forwards Super+C/S to the overlay. Keep your existing imports and key choices; Framelet does not rewrite your bindings or replace another capture app. Ctrl+C/S and the overlay buttons work without the forwarding submap.
 
@@ -87,18 +89,20 @@ That example includes the `framelet` submap that forwards Super+C/S to the overl
 | Action | Key |
 | --- | --- |
 | Copy capture | **Super+C** or Ctrl+C |
-| Save capture | **Super+S** or Ctrl+S |
+| Save capture and copy its path | **Super+S** or Ctrl+S |
+| Delayed capture | Shift+Print, or T in the selector |
 | Arrow / text / shape | A / T / B |
 | Brush / pen | D / P |
 | Highlight / blur / redact | H / G / R |
 | Move / ellipse / step number / crop | V / O / N / X |
 | Finishing controls | E |
 | Undo / redo | Ctrl+Z / Ctrl+Shift+Z |
+| 45° lines, squares and circles | Hold Shift while drawing |
 | Close a popup or return from finishing; cancel capture | Esc |
 
-Super+C/S require the forwarding submap described above. Copy always uses PNG, even when JPEG is selected for saving.
+Super+C/S require the forwarding submap described above. Copy always uses PNG, even when JPEG is selected for saving. Saving puts the absolute path of the new file on the clipboard as text; turn this off with **Saving copies the file path** in the Framelet window's settings.
 
-**Bar button:** left-click selects a region, middle-click starts scrolling capture, right-click opens the capture menu. The menu also offers full-screen capture, code cards and recording. The symbol has a small image within the bar's standard click slot.
+**Bar button:** left-click selects a region, middle-click starts scrolling capture, right-click opens the capture menu. The menu also offers delayed capture, full-screen capture, code cards, recording and History. The symbol has a small image within the bar's standard click slot.
 
 ## A few more tools
 
@@ -108,11 +112,15 @@ Super+C/S require the forwarding submap described above. Copy always uses PNG, e
 - **Recording:** screen recording and webcam tools inherited from Omaframe are included.
 - **Export:** PNG/JPEG at 1×, 2× or 3×. The export limit is 50 megapixels and 32,000 pixels on either edge.
 
-The launcher accepts `--inline image.png`, `--scroll`, `--screen`, `--record`, `--code` and `--studio`.
+The launcher accepts `--inline image.png`, `--scroll`, `--screen`, `--record`, `--code`, `--history`, `--delay N` (0–30 seconds), `--delayed-capture` and `--studio`.
+
+## Language
+
+The capture overlay, style panel, selection, countdown, recording controls, History and status messages are available in English and Brazilian Portuguese. **Language** in the Framelet window's settings chooses System, English or Português; it applies from the next capture. `language=pt_BR` in `Framelet.conf` or `FRAMELET_LANG=pt_BR` do the same. The editor window is in English.
 
 ## Your files stay yours
 
-Settings live in `~/.config/Framelet/Framelet.conf`. Originals and drafts, when enabled, live in `~/.local/share/Framelet/Framelet/`. A fresh install saves to `~/Pictures/Framelet`; an existing selected output folder is preserved.
+Settings live in `~/.config/Framelet/Framelet.conf`. Originals and drafts, when enabled, live in `~/.local/share/Framelet/Framelet/`. A fresh install saves to `~/Pictures/Framelet`; an existing selected output folder is preserved. New files are named `Framelet-YYYY-MM-DD_HH-MM-SS.png`, numbered when two share a second.
 
 Previous CapturaUnificada settings and drafts are copied once. Originals remain untouched, and existing Framelet files are not overwritten. Installing Framelet does not uninstall Postcard or another screenshot app.
 
@@ -121,6 +129,8 @@ Previous CapturaUnificada settings and drafts are copied once. Originals remain 
 - Automatic scrolling needs a responsive, scrollable area with enough visual detail to stitch. Animated or repetitive content may need manual scrolling.
 - Composition flattens existing annotations into the combined image; images cannot yet be reordered independently.
 - Postcard's magnifier, spotlight, wallpaper backgrounds, four-colour gradients and full code-theme catalogue are not included.
+- The editor window and video tools are in English only.
+- History lists PNG screenshots; JPEG saves are not listed yet.
 - Tested on x86_64, Omarchy 4.0.4 and Qt 6.11.2. Other configurations need verification.
 
 ## Remove
@@ -140,6 +150,8 @@ Native sources are in `native-src/`. The root is an Omarchy schema-1 plugin; `na
 ./build.sh
 omarchy plugin validate .
 ```
+
+Tests: configure `native-src` with `-DBUILD_TESTING=ON` and run `ctest -L headless`. CI runs the same suites in an Arch container on every pull request and tag. A string wrapped in `qsTr()` or `tr()` needs an entry in `native-src/i18n/pt_BR.json`; the `i18n` suite fails otherwise.
 
 Product principles and native visual decisions are documented in [PRODUCT.md](native-src/PRODUCT.md) and [DESIGN.md](native-src/DESIGN.md). Artwork sources, font licences and the cover brief are in `design/` and `docs/launch/`.
 

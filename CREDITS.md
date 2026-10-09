@@ -4,14 +4,14 @@ Framelet builds on existing work. This page separates inherited code, product in
 
 | Project | Contribution to Framelet |
 | --- | --- |
-| [Omaframe](https://github.com/btsouth/omaframe), by Tyler South (`btsouth`) | The direct source fork: version 0.7.4, commit `133da85819195573a597760d433bdcee85e4e824`, MIT. Capture, scrolling, recording, OCR, native annotations and the underlying studio/rendering work are inherited and extended. |
+| [Omaframe](https://github.com/btsouth/omaframe), by Tyler South (`btsouth`) | The direct source fork: forked at 0.7.4 (commit `133da85819195573a597760d433bdcee85e4e824`) and updated to 0.10.0 (commit `ec3186d`) in Framelet 0.4.0, MIT. Capture, scrolling, recording, OCR, native annotations, history, the delay timer, snapping and the underlying studio/rendering work are inherited and extended. Omaframe credits @sonlndv for clipboard-only copies, click-to-select finishes and selecting a box by clicking inside it. |
 | [Omasnap](https://github.com/omacom/omasnap), copyright Tobi Lütke | Native Wayland capture code inherited through Omaframe, which identifies source commit `acfb3b5772ccb041b57ccc76e16f1b72719f37e9`. Its MIT notice is retained in [OMASNAP-LICENSE](native-src/docs/OMASNAP-LICENSE). |
 | [Postcard](https://github.com/tahayvr/postcard), by `tahayvr` | A product reference for screenshot presentation, framing, composition and code cards. Framelet combines these ideas with its native capture flow. |
 | [ShareX](https://github.com/ShareX/ShareX) | The original interaction goal: capture and annotate in place, with fast keyboard actions for copying and saving. |
 | [MatteShot](https://github.com/btsouth/matteshot) and [Omaroll](https://github.com/btsouth/omaroll) | Workflow and style influences acknowledged by Omaframe. These are carried-forward upstream credits, rather than separate code imports into Framelet. |
 | [Omarchy](https://github.com/omacom/omarchy) | The plugin platform, shell integration and theme conventions. |
 
-The inline Framelet overlay integration, tapered brush, palettes, named finishes and original symbol are additions in this fork. The exact retained licences are in [LICENSE](LICENSE) and `native-src/`.
+The inline Framelet overlay integration, tapered brush, palettes, named finishes, Portuguese translation, dated file names, path copy on save and original symbol are additions in this fork. [@Dielerorn](https://github.com/Dielerorn) translated the remaining interface text to English ([#1](https://github.com/vxavierr/framelet/pull/1)). The exact retained licences are in [LICENSE](LICENSE) and `native-src/`.
 
 ## Presentation assets
 
