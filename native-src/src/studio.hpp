@@ -5,6 +5,7 @@
 #include "renderer.hpp"
 #include "scroll-capture.hpp"
 #include "stitch.hpp"
+#include <QDateTime>
 #include <QMutex>
 #include <QObject>
 #include <QQuickImageProvider>
@@ -121,6 +122,9 @@ class Studio final : public QObject {
   Q_PROPERTY(bool draftDirty READ draftDirty NOTIFY changed)
   Q_PROPERTY(bool keepOriginals READ keepOriginals WRITE setKeepOriginals NOTIFY changed)
   Q_PROPERTY(bool autoSaveScreenshots READ autoSaveScreenshots WRITE setAutoSaveScreenshots NOTIFY changed)
+  Q_PROPERTY(bool copyOnCapture READ copyOnCapture WRITE setCopyOnCapture NOTIFY changed)
+  Q_PROPERTY(bool copySavedPath READ copySavedPath WRITE setCopySavedPath NOTIFY changed)
+  Q_PROPERTY(QString language READ language WRITE setLanguage NOTIFY changed)
   Q_PROPERTY(bool editing READ editing WRITE setEditing NOTIFY changed)
   /** False until the first-run welcome has been seen or dismissed. */
   Q_PROPERTY(bool welcomed READ welcomed WRITE setWelcomed NOTIFY changed)
@@ -174,6 +178,9 @@ public:
   QRectF inlineArea() const { return m_lastArea; }
   bool inlineScroll() const { return m_inlineScroll; }
   Q_INVOKABLE void deliverInline(bool save);
+  /** Framelet-yyyy-MM-dd_HH-mm-ss.ext in folder, numbered when taken. */
+  static QString capturePath(const QString &folder, const QString &extension,
+                             const QDateTime &when = QDateTime::currentDateTime());
   QVariantMap framing() const;
   QStringList lookNames() const;
   QVariantList palettes() const;
@@ -203,6 +210,12 @@ public:
   bool keepOriginals() const;
   void setKeepOriginals(bool);
   bool autoSaveScreenshots() const;
+  bool copyOnCapture() const;
+  void setCopyOnCapture(bool value);
+  bool copySavedPath() const;
+  void setCopySavedPath(bool value);
+  QString language() const;
+  void setLanguage(const QString &value);
   void setAutoSaveScreenshots(bool);
   bool editing() const { return m_editing; }
   bool welcomed() const;
@@ -366,6 +379,7 @@ signals:
   void recordOptionsRequested();
 
 private:
+  void copyNewCapture();
   friend class DelayTest;
   Capture::Grab m_captureGrab;
   quint64 m_captureRequestGeneration = 0;

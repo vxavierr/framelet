@@ -264,6 +264,12 @@ private slots:
     QCOMPARE(History::captureTime("Framelet-2026-09-28_12-30-01-123-abc.png",
                                   fallback.toMSecsSinceEpoch()),
              QDateTime(QDate(2026, 9, 28), QTime(12, 30, 1, 123)));
+    for (const auto *name : {"Framelet-2026-10-09_14-02-11.png",
+                             "Framelet-2026-10-09_14-02-11-2.png"})
+      QCOMPARE(History::captureTime(name, fallback.toMSecsSinceEpoch()),
+               QDateTime(QDate(2026, 10, 9), QTime(14, 2, 11)));
+    QCOMPARE(History::discoveredKind("Framelet-2026-10-09_14-02-11-2.png"),
+             QString("Screenshot"));
     QCOMPARE(History::captureTime(
                  "Recording-2026-10-04_12-35-02-abcdef-incomplete.mp4",
                  fallback.toMSecsSinceEpoch()),

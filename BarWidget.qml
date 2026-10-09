@@ -1,4 +1,6 @@
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import qs.Commons
 import qs.Ui
 
@@ -7,6 +9,21 @@ BarWidget {
     moduleName: "vxavierr.framelet"
     implicitWidth: button.implicitWidth
     implicitHeight: barSize
+    // Follows Framelet's language setting: language=pt_BR, en or system.
+    property string language: ""
+    readonly property bool portuguese: language.startsWith("pt")
+        || ((language === "" || language === "system") && Qt.locale().name.startsWith("pt"))
+    function label(english, portugueseText) { return portuguese ? portugueseText : english }
+    FileView {
+        path: Quickshell.env("HOME") + "/.config/Framelet/Framelet.conf"
+        watchChanges: true
+        printErrors: false
+        onLoaded: {
+            const match = /^language=(.*)$/m.exec(text());
+            root.language = match ? match[1].trim() : "";
+        }
+        onFileChanged: reload()
+    }
     function take(mode) {
         menu.open = false;
         root.bar.shell.summon(root.moduleName, JSON.stringify({capture:mode}));
@@ -17,7 +34,7 @@ BarWidget {
         bar: root.bar
         text: ""
         opticalSize: Style.bar.iconFont
-        tooltipText: "Framelet — select and annotate"
+        tooltipText: root.label("Framelet — select and annotate", "Framelet — selecionar e anotar")
         iconComponent: Item {
             Image {
                 anchors.centerIn: parent
@@ -45,11 +62,13 @@ BarWidget {
             width: parent.width; spacing: Style.space(4)
             Repeater {
                 model: [
-                    {name:"Select and annotate",mode:"smart"},
-                    {name:"Full screen",mode:"fullscreen"},
-                    {name:"Scrolling capture",mode:"scroll"},
-                    {name:"Code card",mode:"code"},
-                    {name:"Record screen",mode:"record"}
+                    {name:root.label("Select and annotate","Selecionar e anotar"),mode:"smart"},
+                    {name:root.label("Delayed capture","Captura com atraso"),mode:"delay"},
+                    {name:root.label("Full screen","Tela inteira"),mode:"fullscreen"},
+                    {name:root.label("Scrolling capture","Captura com rolagem"),mode:"scroll"},
+                    {name:root.label("Code card","Cartão de código"),mode:"code"},
+                    {name:root.label("Record screen","Gravar a tela"),mode:"record"},
+                    {name:root.label("History","Histórico"),mode:"history"}
                 ]
                 Rectangle {
                     required property var modelData

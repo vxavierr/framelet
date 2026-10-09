@@ -46,10 +46,10 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true
-        Text { textFormat: Text.PlainText; text: "History"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 24; font.weight: Font.Medium }
+        Text { textFormat: Text.PlainText; text: qsTr("History"); color: theme.text; font.family: theme.fontFamily; font.pixelSize: 24; font.weight: Font.Medium }
         Item { Layout.fillWidth: true }
-        StudioButton { text: "Refresh"; quiet: true; enabled: !history.busy; onClicked: history.refresh() }
-        StudioButton { text: "Back"; quiet: true; onClicked: pane.homeRequested() }
+        StudioButton { text: qsTr("Refresh"); quiet: true; enabled: !history.busy; onClicked: history.refresh() }
+        StudioButton { text: qsTr("Back"); quiet: true; onClicked: pane.homeRequested() }
     }
     RowLayout {
         Layout.fillWidth: true
@@ -68,13 +68,13 @@ ColumnLayout {
         TextField {
             Layout.preferredWidth: Math.max(120, Math.min(280, pane.width / 3))
             text: history.search
-            placeholderText: "Search filenames"
-            Accessible.name: "Search History filenames"
+            placeholderText: qsTr("Search filenames")
+            Accessible.name: qsTr("Search History filenames")
             onTextChanged: history.search = text
             Keys.onDownPressed: pane.select(0)
         }
     }
-    Text { textFormat: Text.PlainText; visible: history.busy || history.status.length > 0; text: history.busy ? "Looking for saved captures…" : history.status; color: theme.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
+    Text { textFormat: Text.PlainText; visible: history.busy || history.status.length > 0; text: history.busy ? qsTr("Looking for saved captures…") : history.status; color: theme.muted; Layout.fillWidth: true; wrapMode: Text.Wrap }
     ListView {
         id: list
         objectName: "historyList"
@@ -86,7 +86,7 @@ ColumnLayout {
         reuseItems: true
         spacing: 6
         activeFocusOnTab: true
-        Accessible.name: "Saved captures and editable drafts"
+        Accessible.name: qsTr("Saved captures and editable drafts")
         keyNavigationEnabled: false
         section.property: "day"
         section.criteria: ViewSection.FullString
@@ -134,7 +134,7 @@ ColumnLayout {
             border.width: theme.controlBorder.a > 0 ? (list.currentIndex === index && list.activeFocus ? 2 : 1) : 0
             border.color: list.currentIndex === index ? theme.focusBorder : theme.controlBorder
             Accessible.role: Accessible.ListItem
-            Accessible.name: captureName + ", " + kind + ", " + when + (incomplete ? ", Incomplete" : "") + (hasDraft ? ", Editable draft available" : "")
+            Accessible.name: captureName + ", " + kind + ", " + when + (incomplete ? qsTr(", Incomplete") : "") + (hasDraft ? qsTr(", Editable draft available") : "")
             Accessible.onPressAction: { pane.select(index); pane.openRow(); }
             MouseArea {
                 id: mouse
@@ -166,7 +166,7 @@ ColumnLayout {
                     RowLayout {
                         spacing: 6
                         Repeater {
-                            model: [ { label: "Incomplete", show: card.incomplete, ink: theme.urgent }, { label: "Draft", show: card.hasDraft, ink: theme.accent } ]
+                            model: [ { label: qsTr("Incomplete"), show: card.incomplete, ink: theme.urgent }, { label: qsTr("Draft"), show: card.hasDraft, ink: theme.accent } ]
                             Rectangle {
                                 required property var modelData
                                 visible: modelData.show
@@ -179,9 +179,9 @@ ColumnLayout {
                     }
                     RowLayout {
                         spacing: 6
-                        StudioButton { text: "Copy"; primary: true; visible: !card.draft; Accessible.name: "Copy " + card.captureName; onClicked: { pane.select(card.index); pane.act("copy"); } }
-                        StudioButton { text: card.draft ? "Resume" : "Open"; quiet: true; visible: card.canEdit; onClicked: { pane.select(card.index); pane.openRow(); } }
-                        StudioButton { text: "Actions"; quiet: true; Accessible.name: "Actions for " + card.captureName; onClicked: { pane.select(card.index); actions.showFor(card.index); } }
+                        StudioButton { text: qsTr("Copy"); primary: true; visible: !card.draft; Accessible.name: qsTr("Copy %1").arg(card.captureName); onClicked: { pane.select(card.index); pane.act("copy"); } }
+                        StudioButton { text: card.draft ? qsTr("Resume") : qsTr("Open"); quiet: true; visible: card.canEdit; onClicked: { pane.select(card.index); pane.openRow(); } }
+                        StudioButton { text: qsTr("Actions"); quiet: true; Accessible.name: qsTr("Actions for %1").arg(card.captureName); onClicked: { pane.select(card.index); actions.showFor(card.index); } }
                     }
                     Item { Layout.fillHeight: true }
                 }
@@ -192,7 +192,7 @@ ColumnLayout {
             anchors.centerIn: parent
             width: Math.min(440, parent.width - 40)
             visible: list.count === 0 && !history.busy
-            text: history.search.length > 0 ? "No matching captures." : "Saved captures appear here. Clipboard-only copies are not added."
+            text: history.search.length > 0 ? qsTr("No matching captures.") : qsTr("Saved captures appear here. Clipboard-only copies are not added.")
             color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 15; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter
         }
     }
@@ -210,12 +210,12 @@ ColumnLayout {
             popup(pane, Math.max(0, pane.width - width - 20), 130);
         }
         function act(action) { history.action(row, action, key); }
-        MenuItem { text: actions.draft ? "Resume" : "Open in editor"; visible: actions.canEdit; height: visible ? implicitHeight : 0; onTriggered: actions.act("edit") }
-        MenuItem { text: "Resume draft"; visible: !actions.draft && actions.hasDraft; height: visible ? implicitHeight : 0; onTriggered: actions.act("resume") }
-        MenuItem { text: "Copy again"; enabled: !actions.draft; onTriggered: actions.act("copy") }
-        MenuItem { text: "Open externally"; enabled: !actions.draft; onTriggered: actions.act("external") }
-        MenuItem { text: "Reveal in folder"; enabled: !actions.draft; onTriggered: actions.act("reveal") }
-        MenuItem { text: actions.draft ? "Delete draft…" : "Move to Trash…"; onTriggered: pane.confirmDelete(actions.row, actions.key, actions.path, actions.draft) }
+        MenuItem { text: actions.draft ? qsTr("Resume") : qsTr("Open in editor"); visible: actions.canEdit; height: visible ? implicitHeight : 0; onTriggered: actions.act("edit") }
+        MenuItem { text: qsTr("Resume draft"); visible: !actions.draft && actions.hasDraft; height: visible ? implicitHeight : 0; onTriggered: actions.act("resume") }
+        MenuItem { text: qsTr("Copy again"); enabled: !actions.draft; onTriggered: actions.act("copy") }
+        MenuItem { text: qsTr("Open externally"); enabled: !actions.draft; onTriggered: actions.act("external") }
+        MenuItem { text: qsTr("Reveal in folder"); enabled: !actions.draft; onTriggered: actions.act("reveal") }
+        MenuItem { text: actions.draft ? qsTr("Delete draft…") : qsTr("Move to Trash…"); onTriggered: pane.confirmDelete(actions.row, actions.key, actions.path, actions.draft) }
         onClosed: list.forceActiveFocus()
     }
     ConfirmDialog {
@@ -223,7 +223,7 @@ ColumnLayout {
         property int row: -1
         property string key: ""
         property bool isDraft: false
-        title: isDraft ? "Delete draft?" : "Move to Trash?"
+        title: isDraft ? qsTr("Delete draft?") : qsTr("Move to Trash?")
         confirmText: isDraft ? "Delete draft" : "Move to Trash"
         onConfirmed: { history.action(row, isDraft ? "delete-draft" : "trash", key); list.forceActiveFocus(); }
         onClosed: list.forceActiveFocus()

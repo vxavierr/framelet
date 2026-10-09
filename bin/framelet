@@ -4,8 +4,12 @@ plugin_dir="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 export TMPDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/framelet/tmp"
 mkdir -p -- "$TMPDIR"
 export LD_LIBRARY_PATH="$plugin_dir/native/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+status=1
+# The engine leaves the framelet submap itself. Reset it here only after a
+# failure, so an invocation that just forwards a command to an open Framelet
+# window does not take Super+C/S away from that window's capture overlay.
 cleanup() {
-  if [[ "$(hyprctl submap 2>/dev/null)" == "framelet" ]]; then
+  if [[ $status -ne 0 && "$(hyprctl submap 2>/dev/null)" == "framelet" ]]; then
     hyprctl dispatch 'hl.dsp.submap("reset")' >/dev/null 2>&1
   fi
 }
@@ -20,4 +24,5 @@ fi
 framelet_child=$!
 trap 'kill -TERM "$framelet_child" 2>/dev/null || true' TERM INT
 wait "$framelet_child"
-exit $?
+status=$?
+exit $status

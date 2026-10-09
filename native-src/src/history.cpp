@@ -102,19 +102,21 @@ bool History::unchanged(const Entry &e) {
   return true;
 }
 QDateTime History::captureTime(const QString &name, qint64 modified) {
+  // Framelet-<time>.png and Framelet-<time>-2.png from saves, plus the
+  // Framelet-<time>-<ms>-<id>.png names written by the finish chooser.
   static const QRegularExpression shot(
-      "^Framelet-([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{"
-      "3})-.+\\.png$");
+      "^Framelet-([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2})"
+      "(?:-([0-9]{3})-.+|-[0-9]+)?\\.png$");
   static const QRegularExpression video(
       "^Recording-([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2})-.+\\."
       "mp4$");
-  const auto match =
-      name.startsWith("Framelet-") ? shot.match(name) : video.match(name);
+  const bool screenshot = name.startsWith("Framelet-");
+  const auto match = screenshot ? shot.match(name) : video.match(name);
   if (match.hasMatch()) {
-    const auto time =
-        QDateTime::fromString(match.captured(1), name.startsWith("Framelet-")
-                                                     ? "yyyy-MM-dd_HH-mm-ss-zzz"
-                                                     : "yyyy-MM-dd_HH-mm-ss");
+    const bool millis = screenshot && !match.captured(2).isEmpty();
+    const auto time = QDateTime::fromString(
+        millis ? match.captured(1) + '-' + match.captured(2) : match.captured(1),
+        millis ? "yyyy-MM-dd_HH-mm-ss-zzz" : "yyyy-MM-dd_HH-mm-ss");
     if (time.isValid())
       return time;
   }

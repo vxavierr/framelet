@@ -9,7 +9,7 @@ Window {
     visible: false
     color: "transparent"
     flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus
-    title: "Framelet screenshot countdown"
+    title: qsTr("Framelet screenshot countdown")
     Rectangle {
         anchors.fill: parent
         radius: theme.radius
@@ -22,7 +22,7 @@ Window {
             spacing: 4
             Text {
                 textFormat: Text.PlainText
-                text: "Screenshot in " + studio.delayRemaining
+                text: qsTr("Screenshot in %1").arg(studio.delayRemaining)
                 color: theme.text
                 font.family: theme.fontFamily
                 font.pixelSize: 14
@@ -35,7 +35,7 @@ Window {
                     const keys = [];
                     if (shortcuts.screenshotKey.length) keys.push(shortcuts.screenshotKey);
                     if (shortcuts.delayKey.length) keys.push(shortcuts.delayKey);
-                    return keys.length ? keys.join(" or ") + " cancels" : "Cancel to return";
+                    return keys.length ? qsTr("%1 cancels").arg(keys.join(qsTr(" or "))) : qsTr("Cancel to return");
                 }
                 color: theme.muted
                 font.family: theme.fontFamily
@@ -50,10 +50,10 @@ Window {
             height: 32
             implicitWidth: 60
             implicitHeight: 32
-            text: "Cancel"
+            text: qsTr("Cancel")
             focusPolicy: Qt.NoFocus
             tooltipEnabled: false
-            Accessible.name: "Cancel screenshot countdown"
+            Accessible.name: qsTr("Cancel screenshot countdown")
             onClicked: studio.cancelDelayedCapture()
         }
     }

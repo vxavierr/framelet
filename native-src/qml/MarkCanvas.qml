@@ -611,7 +611,7 @@ Item {
                     wrapMode: TextEdit.Wrap
                     horizontalAlignment: textEditor.textAlign === "center" || !textEditor.textAlign ? TextEdit.AlignHCenter : textEditor.textAlign === "right" ? TextEdit.AlignRight : TextEdit.AlignLeft
                     selectByMouse: true
-                    Accessible.name: "Label text"
+                    Accessible.name: qsTr("Label text")
                     onTextChanged: if (length > 240) remove(240, length)
                     onCursorRectangleChanged: textScroll.revealCursor()
                     onActiveFocusChanged: if (!activeFocus && textEditor.active) textEditor.commit()
@@ -638,7 +638,7 @@ Item {
                 id: placeholder
                 visible: field.length === 0
                 anchors.centerIn: parent
-                text: "Type a label"
+                text: qsTr("Type a label")
                 font: field.font
                 color: Qt.rgba(textEditor.ink.r, textEditor.ink.g, textEditor.ink.b, 0.45)
             }
@@ -658,7 +658,7 @@ Item {
                 id: hintText
                 anchors.fill: parent
                 anchors.margins: 6
-                text: (field.length >= 220 ? field.length + "/240 · " : "") + "Enter: new line · Esc: finish"
+                text: (field.length >= 220 ? field.length + "/240 · " : "") + qsTr("Enter: new line · Esc: finish")
                 color: theme.muted
                 font.family: theme.fontFamily
                 font.pixelSize: 11

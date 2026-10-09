@@ -5,7 +5,7 @@ import QtQuick.Layouts
 // Quick colors first; a visual picker and hex entry are revealed on request.
 ColumnLayout {
     id: choice
-    property string title: "Color"
+    property string title: qsTr("Color")
     property color value: "#ffffff"
     property bool custom: false
     property var swatches: [
@@ -62,7 +62,7 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
         StudioButton {
-            text: "Custom"
+            text: qsTr("Custom")
             implicitHeight: 28
             padding: 7
             font.pixelSize: 11
@@ -121,7 +121,7 @@ ColumnLayout {
         ThemedSlider {
             id: hueSlider
             Layout.fillWidth: true
-            Accessible.name: choice.title + " hue"
+            Accessible.name: qsTr("%1 hue").arg(choice.title)
             from: 0; to: 1; stepSize: 0.01
             value: choice.hue
             onMoved: choice.hue = value
@@ -145,12 +145,12 @@ ColumnLayout {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: "Hex color"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
+            Text { textFormat: Text.PlainText; Layout.fillWidth: true; text: qsTr("Hex color"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
             TextField {
                 id: hex
                 Layout.preferredWidth: 102
                 Layout.preferredHeight: 30
-                Accessible.name: choice.title + " hex color"
+                Accessible.name: qsTr("%1 hex color").arg(choice.title)
                 text: choice.value.toString()
                 maximumLength: 7
                 selectByMouse: true

@@ -672,6 +672,54 @@ ApplicationWindow {
                         font.pixelSize: 11
                         wrapMode: Text.Wrap
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text { textFormat: Text.PlainText; text: "Language"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13; Layout.fillWidth: true }
+                        ComboBox {
+                            id: languageChoice
+                            objectName: "languageChoice"
+                            readonly property var values: ["system", "en", "pt_BR"]
+                            model: ["System", "English", "Português (Brasil)"]
+                            currentIndex: Math.max(0, values.indexOf(studio.language))
+                            onActivated: index => studio.language = values[index]
+                            Layout.preferredWidth: 200
+                        }
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        text: "The capture overlay, selection, recording controls and History follow this language from the next capture."
+                        color: theme.muted
+                        font.family: theme.fontFamily
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+                    RecordToggle {
+                        objectName: "copySavedPathToggle"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Saving copies the file path"
+                        checked: studio.copySavedPath
+                        onToggled: studio.copySavedPath = checked
+                    }
+                    RecordToggle {
+                        objectName: "copyOnCaptureToggle"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        text: "Copy each capture right away"
+                        checked: studio.copyOnCapture
+                        onToggled: studio.copyOnCapture = checked
+                    }
+                    Text {
+                        textFormat: Text.PlainText
+                        Layout.fillWidth: true
+                        text: "Super+S in the capture overlay saves the image and puts its full path on the clipboard. Copying right away puts the plain capture on the clipboard before you annotate it."
+                        color: theme.muted
+                        font.family: theme.fontFamily
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
                     SectionLabel { text: "AFTER A CAPTURE IS COPIED" }
                     RecordToggle {

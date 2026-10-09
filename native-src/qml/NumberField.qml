@@ -27,7 +27,7 @@ RowLayout {
         hoverEnabled: true
         focusPolicy: Qt.NoFocus
         autoRepeat: true
-        Accessible.name: sign === "+" ? "Increase" : "Decrease"
+        Accessible.name: sign === "+" ? qsTr("Increase") : qsTr("Decrease")
         background: Rectangle {
             radius: theme.radius
             color: stepButton.down ? theme.pressedFill : stepButton.hovered ? theme.hoverFill : theme.controlFill

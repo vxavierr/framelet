@@ -29,7 +29,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint | Qt.WindowDoesNotAcceptFocus
-    title: "Framelet — recording"
+    title: qsTr("Framelet — recording")
     onClosing: function(event) {if(visible && recorder.active) {event.accepted=false;recorder.stop()}}
     readonly property bool live: recorder.state === "recording"
     readonly property bool paused: recorder.state === "paused"
@@ -84,7 +84,7 @@ Window {
                     textFormat: Text.PlainText
                     Layout.fillWidth: true
                     visible: control.countdownOnly || control.paused
-                    text: control.paused ? "Paused" : recorder.stopKey + " stops" + (recorder.pauseKey.length ? " · " + recorder.pauseKey + " pauses" : "")
+                    text: control.paused ? qsTr("Paused") : qsTr("%1 stops").arg(recorder.stopKey) + (recorder.pauseKey.length ? " · " + qsTr("%1 pauses").arg(recorder.pauseKey) : "")
                     color: theme.muted
                     font.family: theme.fontFamily
                     font.pixelSize: 11
@@ -96,13 +96,13 @@ Window {
                 objectName: "recordingPause"
                 visible: control.live || control.paused
                 enabled: !recorder.pausePending
-                hint: recorder.pausePending ? "Waiting for recorder…" : control.paused ? "Continue recording" : "Pause recording"
+                hint: recorder.pausePending ? qsTr("Waiting for recorder…") : control.paused ? qsTr("Continue recording") : qsTr("Pause recording")
                 tooltipEnabled: false
                 Accessible.description: hint
                 implicitWidth: 74
                 implicitHeight: 32
                 padding: 7
-                text: control.paused ? "Resume" : "Pause"
+                text: control.paused ? qsTr("Resume") : qsTr("Pause")
                 contentItem: Text {
                     textFormat: Text.PlainText
                     text: pause.text
@@ -115,14 +115,14 @@ Window {
             }
             Button {
                 id: stop
-                text: recorder.canForceStop ? "Force" : recorder.state === "countdown" ? "Cancel" : "Stop"
+                text: recorder.canForceStop ? qsTr("Force") : recorder.state === "countdown" ? qsTr("Cancel") : qsTr("Stop")
                 enabled: recorder.state !== "stopping" || recorder.canForceStop
                 implicitWidth: 60; implicitHeight: 32
                 hoverEnabled: true
                 opacity: enabled ? 1 : 0.45
                 onClicked: recorder.stop()
-                Accessible.name: recorder.canForceStop ? "Force-stop recording" : recorder.state === "countdown" ? "Cancel recording" : "Stop recording"
-                Accessible.description: recorder.canForceStop ? "The file may be incomplete" : recorder.stopKey.length ? recorder.stopKey + " also stops" : ""
+                Accessible.name: recorder.canForceStop ? qsTr("Force-stop recording") : recorder.state === "countdown" ? qsTr("Cancel recording") : qsTr("Stop recording")
+                Accessible.description: recorder.canForceStop ? qsTr("The file may be incomplete") : recorder.stopKey.length ? qsTr("%1 also stops").arg(recorder.stopKey) : ""
                 readonly property color fill: stop.down ? theme.mix(theme.recording, theme.background, 0.2) : stop.hovered ? theme.mix(theme.recording, theme.text, 0.14) : theme.recording
                 background: Rectangle {radius: theme.radius; color: stop.fill}
                 contentItem: Item {

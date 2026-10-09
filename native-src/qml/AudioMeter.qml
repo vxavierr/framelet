@@ -4,7 +4,7 @@ import QtQuick.Layouts
 Item {
     id: meter
     property var channel: ({state: "Off", device: "", db: -60, held: -60, clip: false})
-    property string label: "Microphone"
+    property string label: "Microphone" // English key; shown through qsTr
     property bool detailed: false
     property bool railOnly: false
     readonly property string status: channel.clip ? "Clip risk"
@@ -14,11 +14,11 @@ Item {
     implicitWidth: railOnly ? 32 : 210
     implicitHeight: railOnly ? 4 : detailed ? (channel.state === "Off" ? 36 : 64) : 20
     readonly property bool clipRisk: channel.clip
-    onClipRiskChanged: if (clipRisk) Accessible.announce(label + " clip risk", Accessible.Polite)
+    onClipRiskChanged: if (clipRisk) Accessible.announce(qsTr("%1 clip risk").arg(qsTr(label)), Accessible.Polite)
     Accessible.ignored: railOnly
     Accessible.role: Accessible.ProgressBar
-    Accessible.name: label + " level" + (channel.device ? ", " + channel.device : "")
-    Accessible.description: status + (channel.clip ? ", " + Math.round(channel.db) + " dBFS" : "") + (channel.state === "Quiet" && label === "Computer sound" ? ". No sound on this output" : "")
+    Accessible.name: qsTr("%1 level").arg(qsTr(label)) + (channel.device ? ", " + channel.device : "")
+    Accessible.description: status + (channel.clip ? ", " + Math.round(channel.db) + " dBFS" : "") + (channel.state === "Quiet" && label === "Computer sound" ? qsTr(". No sound on this output") : "")
     ColumnLayout {
         anchors.fill: parent
         spacing: 3
@@ -26,7 +26,7 @@ Item {
             textFormat: Text.PlainText
             visible: meter.detailed
             Layout.fillWidth: true
-            text: meter.label + (meter.channel.device ? " · " + meter.channel.device : "")
+            text: qsTr(meter.label) + (meter.channel.device ? " · " + meter.channel.device : "")
             elide: Text.ElideRight
             color: theme.text
             font.family: theme.fontFamily
@@ -38,7 +38,7 @@ Item {
             Text {
                 textFormat: Text.PlainText
                 visible: !meter.railOnly && !meter.detailed
-                text: meter.label === "Microphone" ? "Mic" : "Sound"
+                text: meter.label === "Microphone" ? qsTr("Mic") : qsTr("Sound")
                 color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11
                 Layout.preferredWidth: 36
             }

@@ -17,7 +17,7 @@ ApplicationWindow {
     palette.highlight: theme.accent
     palette.highlightedText: theme.onAccent
     palette.placeholderText: theme.faint
-    title: "Framelet — capture and create"
+    title: qsTr("Framelet — capture and create")
     property string tool: "arrow"
     property bool finishing: false
     property bool codeStarted: false
@@ -26,18 +26,18 @@ ApplicationWindow {
     Binding { target: studio; property: "editing"; value: root.visible && !root.finishing }
     readonly property bool ready: studio.hasImage && !studio.busy && !studio.rendering
     readonly property var tools: [
-        {key:"select", label:"Move", shortcut:"V"},
-        {key:"arrow", label:"Arrow", shortcut:"A"},
-        {key:"box", label:"Box", shortcut:"B"},
-        {key:"ellipse", label:"Oval", shortcut:"O"},
-        {key:"text", label:"Text", shortcut:"T"},
-        {key:"highlight", label:"Highlight", shortcut:"H"},
-        {key:"blur", label:"Blur", shortcut:"G"},
-        {key:"redact", label:"Redact", shortcut:"R"},
-        {key:"pen", label:"Pen", shortcut:"P"},
-        {key:"brush", label:"Brush", shortcut:"D"},
-        {key:"step", label:"Step", shortcut:"N"},
-        {key:"crop", label:"Crop", shortcut:"X"}
+        {key:"select", label:qsTr("Move"), shortcut:"V"},
+        {key:"arrow", label:qsTr("Arrow"), shortcut:"A"},
+        {key:"box", label:qsTr("Box"), shortcut:"B"},
+        {key:"ellipse", label:qsTr("Oval"), shortcut:"O"},
+        {key:"text", label:qsTr("Text"), shortcut:"T"},
+        {key:"highlight", label:qsTr("Highlight"), shortcut:"H"},
+        {key:"blur", label:qsTr("Blur"), shortcut:"G"},
+        {key:"redact", label:qsTr("Redact"), shortcut:"R"},
+        {key:"pen", label:qsTr("Pen"), shortcut:"P"},
+        {key:"brush", label:qsTr("Brush"), shortcut:"D"},
+        {key:"step", label:qsTr("Step"), shortcut:"N"},
+        {key:"crop", label:qsTr("Crop"), shortcut:"X"}
     ]
     function deliver(save) {
         if (!studio.hasImage || studio.busy || pending) return;
@@ -167,24 +167,24 @@ ApplicationWindow {
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; Layout.leftMargin: 6; Layout.rightMargin: 6; color: theme.separator }
             ToolStyleButton {
                 id: style; atelierStudio: studio; doc: studio.marks; kind: studio.marks.selectedAnnotation.type || root.tool
-                text: "Palette"; hint: "Palettes, color and thickness"; implicitHeight: 34
+                text: qsTr("Palette"); hint: qsTr("Palettes, color and thickness"); implicitHeight: 34
                 contentItem: RowLayout {
                     spacing: 7
                     Rectangle { width: 10; height: 10; radius: 5; color: style.style.color || theme.accent; Layout.alignment: Qt.AlignVCenter }
-                    Text { textFormat: Text.PlainText; text: "Palette"; color: style.ink; font.pixelSize: 12; font.family: theme.fontFamily }
+                    Text { textFormat: Text.PlainText; text: qsTr("Palette"); color: style.ink; font.pixelSize: 12; font.family: theme.fontFamily }
                     Glyph { name: "chevron"; ink: style.ink; Layout.preferredWidth: 12; Layout.preferredHeight: 12 }
                 }
             }
-            StudioButton { text: ""; glyph: "undo"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: "Undo · Ctrl+Z"; enabled: studio.marks.canUndo; onClicked: studio.marks.undo() }
+            StudioButton { text: ""; glyph: "undo"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: qsTr("Undo · Ctrl+Z"); enabled: studio.marks.canUndo; onClicked: studio.marks.undo() }
             Rectangle { Layout.preferredWidth: 1; Layout.preferredHeight: 22; Layout.leftMargin: 6; Layout.rightMargin: 6; color: theme.separator }
                 }
             }
-            StudioButton { text: "Copy"; glyph: "copy"; primary: true; implicitHeight: 34; hint: "Super+C"; enabled: !studio.busy; onClicked: root.deliver(false) }
-            StudioButton { text: "Save"; glyph: "folder"; quiet: true; implicitHeight: 34; hint: "Super+S"; enabled: !studio.busy; onClicked: root.deliver(true) }
-            StudioButton { text: ""; glyph: "spark"; quiet: true; implicitWidth: 34; implicitHeight: 34; selected: root.finishing; hint: "Background and frame · E"; enabled: !studio.busy; onClicked: framePanel.open() }
-            StudioButton { text: ""; glyph: "image"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: "Add an image"; onClicked:{addDialog.vertical=false;addDialog.open();} }
-            StudioButton { text: ""; glyph: "code"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: "Create a code card"; onClicked:codePanel.open() }
-            StudioButton { text: ""; glyph: "close"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: "Cancel · Esc"; enabled: !studio.busy; onClicked: studio.dismissQuick() }
+            StudioButton { text: qsTr("Copy"); glyph: "copy"; primary: true; implicitHeight: 34; hint: "Super+C"; enabled: !studio.busy; onClicked: root.deliver(false) }
+            StudioButton { text: qsTr("Save"); glyph: "folder"; quiet: true; implicitHeight: 34; hint: "Super+S"; enabled: !studio.busy; onClicked: root.deliver(true) }
+            StudioButton { text: ""; glyph: "spark"; quiet: true; implicitWidth: 34; implicitHeight: 34; selected: root.finishing; hint: qsTr("Background and frame · E"); enabled: !studio.busy; onClicked: framePanel.open() }
+            StudioButton { text: ""; glyph: "image"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: qsTr("Add an image"); onClicked:{addDialog.vertical=false;addDialog.open();} }
+            StudioButton { text: ""; glyph: "code"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: qsTr("Create a code card"); onClicked:codePanel.open() }
+            StudioButton { text: ""; glyph: "close"; quiet: true; implicitWidth: 34; implicitHeight: 34; hint: qsTr("Cancel · Esc"); enabled: !studio.busy; onClicked: studio.dismissQuick() }
         }
     }
     Popup {
@@ -204,16 +204,16 @@ ApplicationWindow {
             ColumnLayout {
                 width: parent.width
                 spacing: 14
-                Text { textFormat: Text.PlainText; text: "Finish"; color: theme.text; font.pixelSize: 17; font.family: theme.fontFamily; font.weight: Font.DemiBold }
-                Text { textFormat: Text.PlainText; text: "Choose a backing for your capture."; color: theme.muted; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
+                Text { textFormat: Text.PlainText; text: qsTr("Finish"); color: theme.text; font.pixelSize: 17; font.family: theme.fontFamily; font.weight: Font.DemiBold }
+                Text { textFormat: Text.PlainText; text: qsTr("Choose a backing for your capture."); color: theme.muted; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.Wrap }
                 GridLayout {
                     columns: 2; Layout.fillWidth: true; rowSpacing: 8; columnSpacing: 8
                     Repeater {
                         model: [
-                            {name:"Sketchbook",detail:"Paper and texture",color:"#ede5d6"},
-                            {name:"Ink",detail:"Dark and precise",color:"#22272d"},
-                            {name:"Gallery",detail:"Light mat",color:"#f3efe7"},
-                            {name:"Original",detail:"Just the capture",color:"transparent"}
+                            {name:"Sketchbook",detail:qsTr("Paper and texture"),color:"#ede5d6"},
+                            {name:"Ink",detail:qsTr("Dark and precise"),color:"#22272d"},
+                            {name:"Gallery",detail:qsTr("Light mat"),color:"#f3efe7"},
+                            {name:"Original",detail:qsTr("Just the capture"),color:"transparent"}
                         ]
                         StudioButton {
                             required property var modelData
@@ -236,7 +236,7 @@ ApplicationWindow {
                     model: ["More finishes", "Paper", "Slate", "Deep", "Aurora", "Adaptive", "Outline", "Studio", "Ambient"]
                     onActivated: if(currentIndex>0) { studio.configureFraming({custom:false});studio.style=currentIndex-1;root.finishing=true; }
                 }
-                CheckBox { text: "Customize the look"; checked: studio.framing.custom; onToggled: { root.finishing=true; studio.configureFraming({custom:checked}); } }
+                CheckBox { text: qsTr("Customize the look"); checked: studio.framing.custom; onToggled: { root.finishing=true; studio.configureFraming({custom:checked}); } }
                 ColumnLayout {
                     Layout.fillWidth: true; visible: studio.framing.custom; spacing: 10
                     ComboBox {
@@ -246,52 +246,52 @@ ApplicationWindow {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true; visible: studio.framing.backgroundMode!=="transparent"
-                        ColorChoice { Layout.fillWidth: true; value: studio.framing.background; title: "Start color"; onChosen: value => studio.configureFraming({background:String(value)}) }
-                        ColorChoice { Layout.fillWidth: true; visible: studio.framing.backgroundMode==="gradient"; value: studio.framing.backgroundEnd; title: "End color"; onChosen: value => studio.configureFraming({backgroundEnd:String(value)}) }
+                        ColorChoice { Layout.fillWidth: true; value: studio.framing.background; title: qsTr("Start color"); onChosen: value => studio.configureFraming({background:String(value)}) }
+                        ColorChoice { Layout.fillWidth: true; visible: studio.framing.backgroundMode==="gradient"; value: studio.framing.backgroundEnd; title: qsTr("End color"); onChosen: value => studio.configureFraming({backgroundEnd:String(value)}) }
                     }
-                    Text { textFormat: Text.PlainText; text: "Corners"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: qsTr("Corners"); color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:0.15; value:studio.framing.corners; onMoved: studio.configureFraming({corners:value}) }
-                    Text { textFormat: Text.PlainText; text: "Shadow"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: qsTr("Shadow"); color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:1; value:studio.framing.shadow; onMoved: studio.configureFraming({shadow:value}) }
-                    Text { textFormat: Text.PlainText; text: "Inner padding"; color: theme.muted; font.pixelSize: 12 }
+                    Text { textFormat: Text.PlainText; text: qsTr("Inner padding"); color: theme.muted; font.pixelSize: 12 }
                     ThemedSlider { Layout.fillWidth: true; from:0; to:0.15; value:studio.framing.inset; onMoved: studio.configureFraming({inset:value}) }
-                    Text { textFormat: Text.PlainText; text:"Paper texture"; color:theme.muted; font.pixelSize:12 }
+                    Text { textFormat: Text.PlainText; text:qsTr("Paper texture"); color:theme.muted; font.pixelSize:12 }
                     ThemedSlider { Layout.fillWidth:true; from:0;to:1;value:studio.framing.paper;enabled:studio.framing.backgroundMode!=="transparent";onMoved:studio.configureFraming({paper:value}) }
-                    CheckBox { text:"Mat"; checked:studio.framing.mat;onToggled:studio.configureFraming({mat:checked}) }
-                    CheckBox { text:"Title bar"; checked:studio.framing.titlebar; onToggled:studio.configureFraming({titlebar:checked}) }
-                    TextField { Layout.fillWidth:true; visible:studio.framing.titlebar; text:studio.framing.title; placeholderText:"Title"; onEditingFinished:studio.configureFraming({title:text}) }
+                    CheckBox { text:qsTr("Mat"); checked:studio.framing.mat;onToggled:studio.configureFraming({mat:checked}) }
+                    CheckBox { text:qsTr("Title bar"); checked:studio.framing.titlebar; onToggled:studio.configureFraming({titlebar:checked}) }
+                    TextField { Layout.fillWidth:true; visible:studio.framing.titlebar; text:studio.framing.title; placeholderText:qsTr("Title"); onEditingFinished:studio.configureFraming({title:text}) }
                 }
-                Text { textFormat: Text.PlainText; text:"Margin"; color:theme.muted; font.pixelSize:12 }
+                Text { textFormat: Text.PlainText; text:qsTr("Margin"); color:theme.muted; font.pixelSize:12 }
                 ThemedSlider { Layout.fillWidth:true; from:0.02; to:0.22; value:studio.padding; enabled:studio.style!==8 || studio.framing.custom; onMoved:studio.padding=value }
                 ComboBox { Layout.fillWidth:true; model:["Original ratio","Square · 1:1","Landscape · 16:9","Classic · 4:3","Portrait · 9:16"]; currentIndex:studio.aspect; onActivated:studio.aspect=currentIndex }
                 Rectangle { Layout.fillWidth:true; height:1; color:theme.separator }
-                Text { textFormat: Text.PlainText; text:"Your presets"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
+                Text { textFormat: Text.PlainText; text:qsTr("Your presets"); color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
                 ComboBox { Layout.fillWidth:true; visible:studio.lookNames.length>0; model:studio.lookNames; onActivated:studio.applyLook(currentText) }
                 RowLayout {
                     Layout.fillWidth:true
-                    TextField { id:lookName; Layout.fillWidth:true; placeholderText:"Preset name" }
-                    StudioButton { text:"Save"; enabled:lookName.text.trim().length>0; onClicked:{studio.saveLook(lookName.text);lookName.text="";} }
+                    TextField { id:lookName; Layout.fillWidth:true; placeholderText:qsTr("Preset name") }
+                    StudioButton { text:qsTr("Save"); enabled:lookName.text.trim().length>0; onClicked:{studio.saveLook(lookName.text);lookName.text="";} }
                 }
-                Text { textFormat: Text.PlainText; text:"Composition"; color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
+                Text { textFormat: Text.PlainText; text:qsTr("Composition"); color:theme.text; font.pixelSize:13; font.weight:Font.DemiBold }
                 RowLayout {
-                    StudioButton { text:"Side by side"; glyph:"plus"; onClicked:{addDialog.vertical=false;addDialog.open();} }
-                    StudioButton { text:"Stack"; onClicked:{addDialog.vertical=true;addDialog.open();} }
+                    StudioButton { text:qsTr("Side by side"); glyph:"plus"; onClicked:{addDialog.vertical=false;addDialog.open();} }
+                    StudioButton { text:qsTr("Stack"); onClicked:{addDialog.vertical=true;addDialog.open();} }
                 }
-                StudioButton { text:"Back to annotations"; Layout.fillWidth:true; onClicked:{framePanel.close();root.finishing=false;} }
-                StudioButton { text:"Captures folder"; glyph:"folder"; Layout.fillWidth:true; quiet:true; onClicked:saveFolder.open() }
+                StudioButton { text:qsTr("Back to annotations"); Layout.fillWidth:true; onClicked:{framePanel.close();root.finishing=false;} }
+                StudioButton { text:qsTr("Captures folder"); glyph:"folder"; Layout.fillWidth:true; quiet:true; onClicked:saveFolder.open() }
             }
         }
     }
     FileDialog {
         id:addDialog
         property bool vertical:false
-        title:"Add an image to the composition"
-        nameFilters:["Images (*.png *.jpg *.jpeg *.webp)"]
+        title:qsTr("Add an image to the composition")
+        nameFilters:[qsTr("Images (*.png *.jpg *.jpeg *.webp)")]
         onAccepted:{studio.addImage(selectedFile,vertical);root.finishing=true;}
     }
     FolderDialog {
         id:saveFolder
-        title:"Captures folder"
+        title:qsTr("Captures folder")
         currentFolder:"file://"+studio.outputDirectory
         onAccepted:studio.setOutputDirectory(selectedFolder)
     }
@@ -305,25 +305,25 @@ ApplicationWindow {
         onOpened:codeEditor.forceActiveFocus()
         contentItem:ColumnLayout {
             spacing:16
-            Text{ textFormat: Text.PlainText;text:"Code card";color:theme.text;font.pixelSize:20;font.weight:Font.DemiBold}
-            Text{ textFormat: Text.PlainText;text:"Paste code and give it the same background and frame as your capture.";color:theme.muted;font.pixelSize:12;Layout.fillWidth:true;wrapMode:Text.Wrap}
+            Text{ textFormat: Text.PlainText;text:qsTr("Code card");color:theme.text;font.pixelSize:20;font.weight:Font.DemiBold}
+            Text{ textFormat: Text.PlainText;text:qsTr("Paste code and give it the same background and frame as your capture.");color:theme.muted;font.pixelSize:12;Layout.fillWidth:true;wrapMode:Text.Wrap}
             ScrollView {
                 Layout.fillWidth:true;Layout.fillHeight:true
-                TextArea{id:codeEditor;placeholderText:"Your code here…";font.family:"monospace";font.pixelSize:14;wrapMode:TextEdit.NoWrap;selectByMouse:true;tabStopDistance:32}
+                TextArea{id:codeEditor;placeholderText:qsTr("Your code here…");font.family:"monospace";font.pixelSize:14;wrapMode:TextEdit.NoWrap;selectByMouse:true;tabStopDistance:32}
             }
             RowLayout {
                 Layout.fillWidth:true
                 ComboBox{id:codeLanguage;model:["txt","javascript","typescript","python","json","bash","rust","go","css","html"];Layout.preferredWidth:150}
-                CheckBox{id:codeNumbers;text:"Line numbers";checked:true}
-                Text{ textFormat: Text.PlainText;text:"Font size";color:theme.muted;font.pixelSize:12}
+                CheckBox{id:codeNumbers;text:qsTr("Line numbers");checked:true}
+                Text{ textFormat: Text.PlainText;text:qsTr("Font size");color:theme.muted;font.pixelSize:12}
                 SpinBox{id:codeSize;from:12;to:32;value:16}
                 Item{Layout.fillWidth:true}
             }
             RowLayout {
                 Layout.fillWidth:true
-                StudioButton{text:"Cancel";quiet:true;onClicked:codePanel.close()}
+                StudioButton{text:qsTr("Cancel");quiet:true;onClicked:codePanel.close()}
                 Item{Layout.fillWidth:true}
-                StudioButton{text:"Create card";primary:true;enabled:codeEditor.text.trim().length>0&&!studio.busy;onClicked:{studio.makeCodeCard(codeEditor.text,codeLanguage.currentText,codeSize.value,codeNumbers.checked);codePanel.close();root.finishing=true;}}
+                StudioButton{text:qsTr("Create card");primary:true;enabled:codeEditor.text.trim().length>0&&!studio.busy;onClicked:{studio.makeCodeCard(codeEditor.text,codeLanguage.currentText,codeSize.value,codeNumbers.checked);codePanel.close();root.finishing=true;}}
             }
         }
     }
@@ -334,7 +334,7 @@ ApplicationWindow {
         Text {
             textFormat: Text.PlainText
             id: statusLabel; anchors.centerIn: parent; color: theme.muted; font.pixelSize: 11; font.family: theme.fontFamily
-            text: studio.busy || root.pending || studio.quickState === "failed" || studio.quickState === "capture-error" ? studio.status : "Super+C copy    Super+S save    Esc cancel" + (studio.inlineScroll ? "    Scroll to see more" : "")
+            text: studio.busy || root.pending || studio.quickState === "failed" || studio.quickState === "capture-error" ? studio.status : qsTr("Super+C copy    Super+S save    Esc cancel") + (studio.inlineScroll ? qsTr("    Scroll to see more") : "")
         }
     }
 }

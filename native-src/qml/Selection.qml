@@ -23,7 +23,7 @@ Window {
     palette.dark: theme.frame
     flags: Qt.FramelessWindowHint
     color: theme.background
-    title: "Framelet — select"
+    title: qsTr("Framelet — select")
     Shortcut {sequence: "Escape"; enabled: window.visible; onActivated: studio.cancelSelection()}
     Shortcut {sequence: "H"; enabled: window.visible && !window.dragging; onActivated: window.toggleBar()}
     Shortcut {sequence: "Tab"; enabled: window.visible && !window.dragging; onActivated: window.toggleMode()}
@@ -421,9 +421,9 @@ Window {
                 id: dragGrip
                 Layout.preferredWidth: 20
                 Layout.fillHeight: true
-                readonly property string hint: "Drag to move the bar, or hold Super and drag anywhere on it"
+                readonly property string hint: qsTr("Drag to move the bar, or hold Super and drag anywhere on it")
                 Accessible.role: Accessible.Grip
-                Accessible.name: "Move capture bar"
+                Accessible.name: qsTr("Move capture bar")
                 Grid {
                     anchors.centerIn: parent
                     columns: 2
@@ -444,20 +444,20 @@ Window {
                 BarDrag { }
             }
             ModeButton {
-                label: "Screenshot"
+                label: qsTr("Screenshot")
                 glyph: "capture"
                 chosen: !studio.recordingSelection && !studio.scrollSelection
                 onActivated: if (studio.recordingSelection || studio.scrollSelection) studio.useScreenshotSelection()
             }
             ModeButton {
-                label: "Video"
+                label: qsTr("Video")
                 glyph: "record"
                 chosen: studio.recordingSelection
                 markColor: theme.recording
                 onActivated: if (!studio.recordingSelection) studio.recordInstead(window.monitorName)
             }
             ModeButton {
-                label: "Scroll"
+                label: qsTr("Scroll")
                 glyph: "image"
                 chosen: studio.scrollSelection
                 onActivated: if (!studio.scrollSelection) studio.scrollInstead(window.monitorName)
@@ -466,7 +466,7 @@ Window {
             Text {
                 textFormat: Text.PlainText
                 visible: bar.showPrompt
-                text: studio.recordingSelection ? "Click a window or drag an area to record"
+                text: studio.recordingSelection ? qsTr("Click a window or drag an area to record")
                     : studio.scrollSelection ? "Click a window to scroll and stitch it"
                     : "Click a window or drag an area"
                 color: theme.text
@@ -476,23 +476,23 @@ Window {
             Rectangle {visible: !studio.scrollSelection; Layout.fillHeight: true; Layout.topMargin: 6; Layout.bottomMargin: 6; Layout.leftMargin: 4; Layout.rightMargin: 4; width: 1; color: theme.separator}
             BarToggle {
                 visible: !studio.scrollSelection
-                label: window.width < 760 ? "" : "Whole display"
+                label: window.width < 760 ? "" : qsTr("Whole display")
                 glyph: "display"
                 checkable: false
-                hint: (studio.recordingSelection ? "Record" : "Capture") + " this entire display · F"
+                hint: (studio.recordingSelection ? qsTr("Record this entire display · F") : qsTr("Capture this entire display · F"))
                 onActivated: studio.finishSelection(window.monitorName, 0, 0, 1, 1)
             }
             StudioButton {
                 id: delayButton
                 objectName: "screenshotDelay"
                 visible: !studio.recordingSelection && !studio.scrollSelection
-                text: window.width < 900 ? "" : "Delay " + studio.delaySeconds + " s"
+                text: window.width < 900 ? "" : qsTr("Delay %1 s").arg(studio.delaySeconds)
                 glyph: "timer"
                 implicitHeight: 34
                 implicitWidth: window.width < 900 ? 34 : 116
                 padding: 5
-                hint: "Wait, then choose what to capture. T"
-                Accessible.name: "Screenshot delay"
+                hint: qsTr("Wait, then choose what to capture. T")
+                Accessible.name: qsTr("Screenshot delay")
                 onClicked: delayMenu.open()
                 Menu {
                     id: delayMenu
@@ -502,7 +502,7 @@ Window {
                         model: [3, 5, 10]
                         MenuItem {
                             required property int modelData
-                            text: modelData + " seconds"
+                            text: qsTr("%1 seconds").arg(modelData)
                             Accessible.name: text
                             onTriggered: {
                                 delayMenu.close();
@@ -518,10 +518,10 @@ Window {
                 objectName: "soundToggle"
                 audioChannel: audioLevels.sound
                 visible: studio.recordingSelection
-                label: window.width < 760 ? "" : "Sound"
+                label: window.width < 760 ? "" : qsTr("Sound")
                 glyph: recorder.desktopAudio ? "volume" : "mute"
                 on: recorder.desktopAudio
-                hint: "Record what your computer plays · D. " + meterDescription
+                hint: qsTr("Record what your computer plays · D. ") + meterDescription
                 onActivated: recorder.desktopAudio = !recorder.desktopAudio
             }
             BarToggle {
@@ -529,41 +529,41 @@ Window {
                 objectName: "micToggle"
                 audioChannel: audioLevels.microphone
                 visible: studio.recordingSelection
-                label: window.width < 760 ? "" : "Mic"
+                label: window.width < 760 ? "" : qsTr("Mic")
                 glyph: "mic"
                 on: recorder.micAudio
-                hint: (recorder.micAudio && recorder.microphone >= 0 ? "Recording from " + recorder.microphones[recorder.microphone].label : "Record your microphone") + " · M. " + meterDescription
+                hint: (recorder.micAudio && recorder.microphone >= 0 ? qsTr("Recording from %1").arg(recorder.microphones[recorder.microphone].label) : qsTr("Record your microphone")) + " · M. " + meterDescription
                 onActivated: recorder.micAudio = !recorder.micAudio
             }
             BarToggle {
                 visible: studio.recordingSelection
-                label: recorder.countdown === 0 ? "No delay" : recorder.countdown + " s"
+                label: recorder.countdown === 0 ? qsTr("No delay") : qsTr("%1 s").arg(recorder.countdown)
                 glyph: "timer"
                 checkable: false
                 on: recorder.countdown > 0
-                hint: "Countdown before recording starts"
+                hint: qsTr("Countdown before recording starts")
                 onActivated: window.cycleCountdown()
             }
             BarToggle {
                 visible: studio.recordingSelection
-                label: window.width >= 900 ? "Options" : ""
+                label: window.width >= 900 ? qsTr("Options") : ""
                 glyph: "settings"
                 implicitWidth: window.width >= 900 ? 90 : 34
                 checkable: false
-                hint: "More recording options"
+                hint: qsTr("More recording options")
                 onActivated: studio.recordingOptions(window.monitorName)
             }
             Rectangle {visible: bar.showHints; Layout.fillHeight: true; Layout.topMargin: 6; Layout.bottomMargin: 6; Layout.leftMargin: 4; Layout.rightMargin: 4; width: 1; color: theme.separator}
             Keycap {visible: bar.showHints; key: "Tab"}
-            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.recordingSelection ? "Screenshot" : "Video"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.recordingSelection ? qsTr("Screenshot") : qsTr("Video"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
             Keycap {visible: bar.showHints; key: "S"}
-            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.scrollSelection ? "Screenshot" : "Scroll"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: studio.scrollSelection ? qsTr("Screenshot") : qsTr("Scroll"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
             Keycap {
                 id: hideButton
                 key: "H"
-                readonly property string hint: "Hide capture bar · Press H to show it again"
+                readonly property string hint: qsTr("Hide capture bar · Press H to show it again")
                 Accessible.role: Accessible.Button
-                Accessible.name: "Hide capture bar"
+                Accessible.name: qsTr("Hide capture bar")
                 Accessible.onPressAction: window.toggleBar()
                 MouseArea {
                     anchors.fill: parent
@@ -574,15 +574,15 @@ Window {
                     onClicked: window.toggleBar()
                 }
             }
-            Text { textFormat: Text.PlainText; visible: bar.showHints; text: "Hide"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText; visible: bar.showHints; text: qsTr("Hide"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
             Keycap {
                 key: "Esc"
                 Accessible.role: Accessible.Button
-                Accessible.name: "Cancel capture"
+                Accessible.name: qsTr("Cancel capture")
                 Accessible.onPressAction: studio.cancelSelection()
                 MouseArea {anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: studio.cancelSelection()}
             }
-            Text { textFormat: Text.PlainText;visible: bar.showHints; text: "Cancel"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
+            Text { textFormat: Text.PlainText;visible: bar.showHints; text: qsTr("Cancel"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; Layout.rightMargin: 6}
         }
     }
     BarHint {
@@ -610,7 +610,7 @@ Window {
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
-            text: studio.recordingSelection ? "Click a window or drag an area to record"
+            text: studio.recordingSelection ? qsTr("Click a window or drag an area to record")
                 : studio.scrollSelection ? "Click a window to scroll and stitch it"
                 : "Click a window or drag an area"
             color: theme.text
@@ -632,7 +632,7 @@ Window {
             textFormat: Text.PlainText
             id: loadingText
             anchors.centerIn: parent
-            text: "Checking audio and displays…"
+            text: qsTr("Checking audio and displays…")
             color: theme.muted
             font.family: theme.fontFamily
             font.pixelSize: 11

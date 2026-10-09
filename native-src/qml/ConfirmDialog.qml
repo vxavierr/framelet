@@ -54,7 +54,7 @@ Popup {
             Item { Layout.fillWidth: true }
             StudioButton {
                 id: cancelButton
-                text: "Cancel"
+                text: qsTr("Cancel")
                 quiet: true
                 onClicked: dialog.close()
             }

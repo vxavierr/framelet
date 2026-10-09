@@ -7,6 +7,9 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QSettings>
+#include <QRegularExpression>
+#include <QFileInfo>
+#include <QDateTime>
 class InlineDeliveryTest : public QObject {
   Q_OBJECT
 private slots:
@@ -59,6 +62,42 @@ private slots:
     QCOMPARE(saved.size(),source.size());
     QCOMPARE(saved.convertToFormat(QImage::Format_RGB32),Frame::applyEdits(source,studio.marks()->edits()).convertToFormat(QImage::Format_RGB32));
     QCOMPARE(QDir(folder.path()).entryList({"*.png"},QDir::Files).size(),1);
+  }
+  void saveNamesByTimeAndCopiesThePath() {
+    QTemporaryDir folder; QVERIFY(folder.isValid());
+    const QString copied=folder.path()+"/clipboard.txt";
+    qputenv("INLINE_COPY_DEST",copied.toUtf8());
+    ImageStore store; Studio studio(&store,false);
+    studio.setStyle(8);studio.configureFraming({{"custom",false},{"exportFormat","png"},{"exportScale",1}});
+    studio.setOutputDirectory(QUrl::fromLocalFile(folder.path()));
+    QImage source(120,80,QImage::Format_RGB32);source.fill(Qt::red);
+    studio.scrollFinished(source,false,true);
+    QTRY_VERIFY_WITH_TIMEOUT(!studio.rendering(),5000);
+    QSignalSpy finished(&studio,&Studio::dismissRequested);
+    studio.deliverInline(true);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(),1,5000);
+    const QString saved=studio.savedPath();
+    QVERIFY2(QRegularExpression("/Framelet-\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}(-\\d+)?\\.png$").match(saved).hasMatch(),qPrintable(saved));
+    QVERIFY(QFileInfo(saved).isAbsolute() && QFile::exists(saved));
+    QFile clip(copied);QVERIFY(clip.open(QIODevice::ReadOnly));
+    QCOMPARE(QString::fromUtf8(clip.readAll()),saved);
+    QCOMPARE(studio.status(),QString("Image saved. Its path is on the clipboard."));
+    // A second save in the same second gets a numbered name, never an overwrite.
+    const QDateTime when(QDate(2026,10,9),QTime(14,2,11));
+    const QString first=Studio::capturePath(folder.path(),"png",when);
+    QCOMPARE(QFileInfo(first).fileName(),QString("Framelet-2026-10-09_14-02-11.png"));
+    QFile taken(first);QVERIFY(taken.open(QIODevice::WriteOnly));taken.close();
+    QCOMPARE(QFileInfo(Studio::capturePath(folder.path(),"png",when)).fileName(),QString("Framelet-2026-10-09_14-02-11-2.png"));
+    QCOMPARE(QFileInfo(Studio::capturePath(folder.path(),"jpg",when)).fileName(),QString("Framelet-2026-10-09_14-02-11.jpg"));
+    // Turning the preference off leaves the clipboard alone.
+    QFile::remove(copied);QSettings().setValue("copySavedPath",false);
+    studio.scrollFinished(source,false,true);
+    QTRY_VERIFY_WITH_TIMEOUT(!studio.rendering(),5000);
+    studio.deliverInline(true);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(),2,5000);
+    QVERIFY(!QFile::exists(copied));
+    QCOMPARE(studio.status(),QString("Image saved."));
+    QSettings().remove("copySavedPath");qunsetenv("INLINE_COPY_DEST");
   }
   void copyUsesTransientFileAndKeepsFailuresOpen() {
     QTemporaryDir folder; QVERIFY(folder.isValid());
@@ -159,6 +198,13 @@ private slots:
 int main(int argc,char**argv) {
   QGuiApplication app(argc,argv);QCoreApplication::setOrganizationName("CapturaInlineTests");
   QStandardPaths::setTestModeEnabled(true);
+  // Saving copies the file's path. No case may reach the desktop clipboard,
+  // so a stand-in wl-copy writes to INLINE_COPY_DEST or discards the data.
+  QTemporaryDir stubs;if(!stubs.isValid())return 1;
+  QFile stub(stubs.path()+"/wl-copy");if(!stub.open(QIODevice::WriteOnly))return 1;
+  stub.write("#!/bin/sh\nif [ -n \"$INLINE_COPY_DEST\" ]; then /usr/bin/cat > \"$INLINE_COPY_DEST\"; else /usr/bin/cat > /dev/null; fi\n");stub.close();
+  stub.setPermissions(QFile::ReadOwner|QFile::WriteOwner|QFile::ExeOwner);
+  qputenv("PATH",stubs.path().toUtf8()+":"+qgetenv("PATH"));
   InlineDeliveryTest test;return QTest::qExec(&test,argc,argv);
 }
 #include "inline-delivery-test.moc"

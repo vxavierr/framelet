@@ -26,7 +26,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint
-    title: "Framelet — scrolling"
+    title: qsTr("Framelet — scrolling")
     readonly property var capture: studio.scrollCapture
     readonly property bool live: capture !== null && capture.active
     readonly property string headline: !live ? "Done"
@@ -85,22 +85,22 @@ Window {
                     elide: Text.ElideRight
                 }
                 StudioButton {
-                    text: "Done"
+                    text: qsTr("Done")
                     glyph: "check"
                     primary: true
                     implicitHeight: 28
-                    hint: "Keep what has been captured · Enter"
+                    hint: qsTr("Keep what has been captured · Enter")
                     Keys.forwardTo: [keys]
                     Keys.onReturnPressed: studio.scrollCapture.finish()
                     Keys.onEnterPressed: studio.scrollCapture.finish()
                     onClicked: studio.scrollCapture.finish()
                 }
                 StudioButton {
-                    text: "Cancel"
+                    text: qsTr("Cancel")
                     glyph: "close"
                     quiet: true
                     implicitHeight: 28
-                    hint: "Throw the capture away"
+                    hint: qsTr("Throw the capture away")
                     Keys.forwardTo: [keys]
                     Keys.onReturnPressed: studio.scrollCapture.cancel()
                     Keys.onEnterPressed: studio.scrollCapture.cancel()

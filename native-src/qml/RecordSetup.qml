@@ -25,7 +25,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint
-    title: "Framelet — recording"
+    title: qsTr("Framelet — recording")
     readonly property int wantedHeight: content.implicitHeight + recordFooter.implicitHeight + 72
     onWantedHeightChanged: if (visible) height = Math.min(wantedHeight, screen ? screen.height : wantedHeight)
     onVisibleChanged: {
@@ -67,13 +67,13 @@ Window {
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 4
-                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: recorder.state === "failed" ? "Recording needs attention" : "Record your screen"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 19; font.weight: Font.Medium }
-                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: "Nothing starts until you choose what to record."; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: recorder.state === "failed" ? qsTr("Recording needs attention") : qsTr("Record your screen"); color: theme.text; font.family: theme.fontFamily; font.pixelSize: 19; font.weight: Font.Medium }
+                            Text { textFormat: Text.PlainText; Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("Nothing starts until you choose what to record."); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                         }
-                        StudioButton { glyph: "close"; quiet: true; hint: "Cancel · Esc"; onClicked: recorder.cancel() }
+                        StudioButton { glyph: "close"; quiet: true; hint: qsTr("Cancel · Esc"); onClicked: recorder.cancel() }
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
-                    Text { textFormat: Text.PlainText; text: "WHAT TO RECORD"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
+                    Text { textFormat: Text.PlainText; text: qsTr("WHAT TO RECORD"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
                     GridLayout {
                         Layout.fillWidth: true
                         columns: optionsScroll.availableWidth < 480 ? 1 : 2
@@ -81,12 +81,12 @@ Window {
                         rowSpacing: 8
                         StudioButton {
                             Layout.fillWidth: optionsScroll.availableWidth < 480
-                            text: "Area or window"
+                            text: qsTr("Area or window")
                             glyph: "capture"
                             selected: recorder.hasTarget && !recorder.targetLabel.startsWith("Entire")
                             quiet: !selected
                             enabled: recorder.state !== "loading"
-                            hint: "Choose on screen. Recording starts when you let go."
+                            hint: qsTr("Choose on screen. Recording starts when you let go.")
                             onClicked: recorder.chooseRegion()
                         }
                         Choice {
@@ -94,7 +94,7 @@ Window {
                             Layout.fillWidth: true
                             model: recorder.displays
                             currentIndex: -1
-                            displayText: recorder.targetLabel.startsWith("Entire") ? recorder.targetLabel.replace("Entire display · ", "Whole display · ") : "Whole display…"
+                            displayText: recorder.targetLabel.startsWith("Entire") ? recorder.targetLabel.replace("Entire display · ", "Whole display · ") : qsTr("Whole display…")
                             onActivated: recorder.selectDisplay(currentIndex)
                         }
                     }
@@ -109,18 +109,18 @@ Window {
                         elide: Text.ElideRight
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
-                    Text { textFormat: Text.PlainText; text: "SOUND AND DETAILS"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
+                    Text { textFormat: Text.PlainText; text: qsTr("SOUND AND DETAILS"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 10; font.letterSpacing: 0.8 }
                     GridLayout {
                         Layout.fillWidth: true
                         columns: optionsScroll.availableWidth < 480 ? 1 : 2
                         columnSpacing: 18
                         rowSpacing: 4
-                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Computer sound"; checked: recorder.desktopAudio; onToggled: recorder.desktopAudio = checked }
-                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Microphone"; checked: recorder.micAudio; onToggled: recorder.micAudio = checked }
-                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: "Show the cursor"; checked: recorder.cursor; onToggled: recorder.cursor = checked }
+                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Computer sound"); checked: recorder.desktopAudio; onToggled: recorder.desktopAudio = checked }
+                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Microphone"); checked: recorder.micAudio; onToggled: recorder.micAudio = checked }
+                        RecordToggle { Layout.fillWidth: true; Layout.minimumWidth: 0; text: qsTr("Show the cursor"); checked: recorder.cursor; onToggled: recorder.cursor = checked }
                         RowLayout {
                             spacing: 8
-                            Text { textFormat: Text.PlainText; text: "Countdown"; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13 }
+                            Text { textFormat: Text.PlainText; text: qsTr("Countdown"); color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13 }
                             Choice {
                                 model: ["Off", "3 seconds", "5 seconds"]
                                 currentIndex: recorder.countdown === 0 ? 0 : recorder.countdown === 3 ? 1 : 2
@@ -135,20 +135,20 @@ Window {
                         textRole: "label"
                         currentIndex: recorder.microphone
                         onActivated: recorder.microphone = currentIndex
-                        displayText: currentIndex < 0 ? (recorder.microphones.length ? "Choose a microphone" : "No microphone found") : currentText
+                        displayText: currentIndex < 0 ? (recorder.microphones.length ? qsTr("Choose a microphone") : qsTr("No microphone found")) : currentText
                     }
                     AudioMeter { Layout.fillWidth: true; detailed: true; channel: audioLevels.microphone }
                     AudioMeter { Layout.fillWidth: true; detailed: true; label: "Computer sound"; channel: audioLevels.sound }
                     Text {
                         textFormat: Text.PlainText
                         visible: recorder.micAudio
-                        text: "Say a few words to check your microphone."
+                        text: qsTr("Say a few words to check your microphone.")
                         color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12
                     }
                     Text {
                         textFormat: Text.PlainText
                         visible: !recorder.desktopAudio && !recorder.micAudio
-                        text: "The video will be silent."
+                        text: qsTr("The video will be silent.")
                         color: theme.muted
                         font.family: theme.fontFamily
                         font.pixelSize: 12
@@ -157,21 +157,21 @@ Window {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         visible: recorder.desktopAudio || recorder.micAudio
-                        text: "Mute the first 0.4 seconds to avoid an audio pop"
+                        text: qsTr("Mute the first 0.4 seconds to avoid an audio pop")
                         checked: recorder.suppressStartupPop
                         onToggled: recorder.suppressStartupPop = checked
                     }
                     Rectangle { Layout.fillWidth: true; height: 1; color: theme.separator }
                     RecordToggle {
                         Layout.fillWidth: true; Layout.minimumWidth: 0
-                        text: "Camera overlay"; checked: recorder.camera.enabled
+                        text: qsTr("Camera overlay"); checked: recorder.camera.enabled
                         onToggled: recorder.camera.enabled = checked
                     }
                     Choice {
                         Layout.fillWidth: true; visible: recorder.camera.enabled && recorder.camera.devices.length > 0
                         model: recorder.camera.devices; textRole: "label"
                         currentIndex: recorder.camera.device
-                        displayText: currentIndex < 0 ? (recorder.camera.unavailable ? "Selected camera not connected" : "No camera found") : currentText
+                        displayText: currentIndex < 0 ? (recorder.camera.unavailable ? qsTr("Selected camera not connected") : qsTr("No camera found")) : currentText
                         onActivated: recorder.camera.device = currentIndex
                     }
                     Rectangle {
@@ -179,7 +179,7 @@ Window {
                         visible: recorder.camera.enabled && recorder.camera.devices.length > 0
                         color: theme.well; radius: theme.radius; clip: true
                         VideoOutput { id: cameraPreview; anchors.fill: parent; fillMode: VideoOutput.PreserveAspectFit }
-                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !recorder.camera.ready; text: recorder.camera.unavailable ? "Selected camera not connected" : "Starting camera…"; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
+                        Text { textFormat: Text.PlainText; anchors.centerIn: parent; visible: !recorder.camera.ready; text: recorder.camera.unavailable ? qsTr("Selected camera not connected") : qsTr("Starting camera…"); color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12 }
                     }
                     Binding { target: recorder.camera; property: "previewSink"; value: setup.visible && recorder.camera.enabled ? cameraPreview.videoSink : null }
                     Text {
@@ -191,7 +191,7 @@ Window {
                     Text {
                         textFormat: Text.PlainText
                         Layout.fillWidth: true; visible: recorder.camera.enabled && recorder.camera.ready
-                        text: "Move, resize or hide the camera in the video review."
+                        text: qsTr("Move, resize or hide the camera in the video review.")
                         color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 12; wrapMode: Text.Wrap
                     }
                     Rectangle {
@@ -222,7 +222,7 @@ Window {
                             StudioButton {
                                 visible: (!recorder.stopShortcut && shortcuts.recordKey.length === 0 && (shortcuts.recordState === "stock" || shortcuts.recordState === "none"))
                                          || (!recorder.hasControl && shortcuts.pauseKey.length === 0 && shortcuts.pauseState === "none")
-                                text: shortcuts.checking ? "Setting up…" : recorder.stopShortcut ? "Enable pause shortcut" : "Set up recording shortcuts"
+                                text: shortcuts.checking ? qsTr("Setting up…") : recorder.stopShortcut ? qsTr("Enable pause shortcut") : qsTr("Set up recording shortcuts")
                                 glyph: "keyboard"
                                 enabled: !shortcuts.checking
                                 onClicked: shortcuts.setUpRecording()
@@ -231,7 +231,7 @@ Window {
                                 textFormat: Text.PlainText
                                 visible: !recorder.stopShortcut && shortcuts.recordState === "custom"
                                 Layout.fillWidth: true
-                                text: "Alt+Print already runs something else. Bind any key to framelet --record to use it here."
+                                text: qsTr("Alt+Print already runs something else. Bind any key to framelet --record to use it here.")
                                 color: theme.muted
                                 font.family: theme.fontFamily
                                 font.pixelSize: 11
@@ -268,12 +268,12 @@ Window {
                 anchors.bottom: parent.bottom
                 anchors.margins: setup.width < 500 ? 18 : 28
                 spacing: 10
-                Text { textFormat: Text.PlainText; text: "60 fps · MP4 · saved in " + video.outputDirectory.replace(/^\/home\/[^/]+/, "~"); color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideMiddle }
+                Text { textFormat: Text.PlainText; text: qsTr("60 fps · MP4 · saved in %1").arg(video.outputDirectory.replace(/^\/home\/[^/]+/, "~")); color: theme.faint; font.family: theme.fontFamily; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideMiddle }
                 StudioButton {
                     Layout.alignment: Qt.AlignRight
                     Layout.fillWidth: optionsScroll.availableWidth < 480
                     id: primaryButton
-                    text: recorder.canForceStop ? "Force-stop (file may be incomplete)" : !recorder.hasTarget ? "Choose area and record" : recorder.countdown > 0 ? "Record in " + recorder.countdown + " s" : "Start recording"
+                    text: recorder.canForceStop ? qsTr("Force-stop (file may be incomplete)") : !recorder.hasTarget ? qsTr("Choose area and record") : recorder.countdown > 0 ? qsTr("Record in %1 s").arg(recorder.countdown) : qsTr("Start recording")
                     glyph: "record"
                     primary: true
                     enabled: recorder.canForceStop || (recorder.state !== "loading" && !recorder.active && (!recorder.hasTarget || recorder.canStart))

@@ -8,6 +8,7 @@
 #include "studio.hpp"
 #include "history.hpp"
 #include "video.hpp"
+#include "translator.hpp"
 #include <LayerShellQt/Window>
 #include <QCommandLineParser>
 #include <QCryptographicHash>
@@ -29,6 +30,7 @@
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <QScreen>
+#include <QLocale>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QThread>
@@ -83,6 +85,16 @@ int main(int argc, char **argv) {
     if(copied) settings.setValue("migration/data",true);
     settings.sync();
   }
+  // Language: FRAMELET_LANG, then the "language" setting (system, en,
+  // pt_BR), then the desktop's languages. Missing strings stay in English.
+  static JsonTranslator translator;
+  const QString language = JsonTranslator::languageFor(
+      qEnvironmentVariable("FRAMELET_LANG",
+                          QSettings().value("language", "system").toString()),
+      QLocale::system().uiLanguages());
+  if (!language.isEmpty() &&
+      translator.loadJson(":/i18n/" + language + ".json"))
+    app.installTranslator(&translator);
   app.setQuitOnLastWindowClosed(false);
   QThreadPool::globalInstance()->setMaxThreadCount(2);
   QCommandLineParser parser;

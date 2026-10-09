@@ -36,7 +36,10 @@ private slots:
       auto tooltips = QRegularExpression(R"(ToolTip\.text:\s*([^\n]+))").globalMatch(source);
       while (tooltips.hasNext()) {
         const auto tooltip = tooltips.next();
-        QVERIFY2(tooltip.captured(1).trimmed().startsWith('"'), qPrintable(file.fileName()));
+        // A literal, or a literal through qsTr(): translations come from
+        // Framelet's own table, never from captured or imported text.
+        const QString value = tooltip.captured(1).trimmed();
+        QVERIFY2(value.startsWith('"') || value.startsWith("qsTr(\""), qPrintable(file.fileName()));
       }
       auto matches = QRegularExpression(R"(\bText\s*\{\s*([^;\n]*))").globalMatch(source);
       while (matches.hasNext()) {

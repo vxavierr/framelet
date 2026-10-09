@@ -10,15 +10,29 @@ Item {
     property bool opened: false
     readonly property string launcher: Quickshell.env("HOME") + "/.config/omarchy/plugins/vxavierr.framelet/bin/framelet"
     Process { id: capture; command: [root.launcher] }
+    // History is a window that stays open. It runs on its own so a capture
+    // can still start; the engine forwards that capture to the open window.
+    Process { id: windowed; command: [root.launcher] }
     function open(payloadJson) {
         let p = {};
         try { p = JSON.parse(payloadJson || "{}"); } catch(e) {}
+        if (p.capture === "history") {
+            if (windowed.running) return "busy";
+            windowed.command = [root.launcher, "--history"];
+            windowed.running = true;
+            return "ok";
+        }
         let command = [root.launcher];
         if (p.path) command.push("--inline", String(p.path));
         else if (p.capture === "code") command.push("--code");
         else if (p.capture === "scroll") command.push("--scroll");
         else if (p.capture === "fullscreen") command.push("--screen");
         else if (p.capture === "record") command.push("--record");
+        else if (p.capture === "delay") {
+            const seconds = Number(p.seconds);
+            if (Number.isInteger(seconds) && seconds >= 0 && seconds <= 30) command.push("--delay", String(seconds));
+            else command.push("--delayed-capture");
+        }
         if (capture.running) return "busy";
         capture.command = command;
         capture.running = true;

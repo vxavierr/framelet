@@ -393,6 +393,49 @@ bool Studio::keepOriginals() const {
 bool Studio::autoSaveScreenshots() const {
   return QSettings().value("autoSaveScreenshots", true).toBool();
 }
+static bool copyPngBytes(const QByteArray &png, QString &error);
+bool Studio::copyOnCapture() const {
+  return QSettings().value("copyOnCapture", false).toBool();
+}
+void Studio::setCopyOnCapture(bool value) {
+  if (value == copyOnCapture())
+    return;
+  QSettings().setValue("copyOnCapture", value);
+  emit changed();
+}
+bool Studio::copySavedPath() const {
+  return QSettings().value("copySavedPath", true).toBool();
+}
+void Studio::setCopySavedPath(bool value) {
+  if (value == copySavedPath())
+    return;
+  QSettings().setValue("copySavedPath", value);
+  emit changed();
+}
+QString Studio::language() const {
+  return QSettings().value("language", "system").toString();
+}
+// Applies from the next capture or window; the open surfaces keep theirs.
+void Studio::setLanguage(const QString &value) {
+  if (!QStringList{"system", "en", "pt_BR"}.contains(value) || value == language())
+    return;
+  QSettings().setValue("language", value);
+  emit changed();
+}
+// With "Copy each capture right away" on, the plain capture reaches the
+// clipboard before any annotation. A later copy or save replaces it.
+void Studio::copyNewCapture() {
+  if (!copyOnCapture() || m_original.isNull())
+    return;
+  (void)QtConcurrent::run([image = m_original] {
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    QString error;
+    if (image.save(&buffer, "PNG"))
+      copyPngBytes(png, error);
+  });
+}
 void Studio::setAutoSaveScreenshots(bool value) {
   if (value == autoSaveScreenshots())
     return;
@@ -516,8 +559,8 @@ void Studio::loadImage(QImage image, QString name, bool demo) {
   m_draftTimer.stop();
   m_draftDirty = false;
   m_draftId.clear();
-  m_status = demo ? "Sample image. Try a finish or the editor."
-                  : "Ready when you are.";
+  m_status = demo ? tr("Sample image. Try a finish or the editor.")
+                  : tr("Ready when you are.");
   startReading();
   scheduleRender();
   emit sourceChanged();
@@ -539,7 +582,7 @@ void Studio::closeImage() {
   m_draftDirty = false;
   m_rendering = false;
   invalidateSaved();
-  m_status = "Ready when you are.";
+  m_status = tr("Ready when you are.");
   emit changed();
   emit sourceChanged();
 }
@@ -559,7 +602,7 @@ void Studio::open(const QUrl &url) {
     return;
   }
   m_busy = true;
-  m_status = "Opening image…";
+  m_status = tr("Opening image…");
   emit changed();
   struct Result {
     QImage image;
@@ -603,7 +646,7 @@ void Studio::setOutputDirectory(const QUrl &url) {
   QSettings().setValue("outputDirectory", m_directory);
   if (m_quickMode && m_quickState == "failed" && recoveryAction().isEmpty()) {
     m_quickState = "choosing";
-    m_status = "Save folder changed. Choose a finish to try again.";
+    m_status = tr("Save folder changed. Choose a finish to try again.");
   }
   emit changed();
 }
@@ -657,7 +700,7 @@ bool Studio::saveDraftNow() {
   }
   const QString directory = draftsDirectory();
   if (!QDir().mkpath(directory)) {
-    m_status = "Could not save editable draft. Check the application data folder.";
+    m_status = tr("Could not save editable draft. Check the application data folder.");
     emit changed();
     return false;
   }
@@ -670,13 +713,13 @@ bool Studio::saveDraftNow() {
     QSaveFile source(sourcePath);
     if (!source.open(QIODevice::WriteOnly) ||
         !source.setPermissions(QFile::ReadOwner | QFile::WriteOwner)) {
-      m_status = "Could not save the private draft image.";
+      m_status = tr("Could not save the private draft image.");
       emit changed();
       return false;
     }
     QImageWriter writer(&source, "png");
     if (!writer.write(m_original) || !source.commit()) {
-      m_status = "Could not finish saving the private draft image.";
+      m_status = tr("Could not finish saving the private draft image.");
       emit changed();
       return false;
     }
@@ -699,7 +742,7 @@ bool Studio::saveDraftNow() {
       !metadata.setPermissions(QFile::ReadOwner | QFile::WriteOwner) ||
       metadata.write(serialized) != serialized.size() ||
       !metadata.commit()) {
-    m_status = "Could not finish saving the editable draft.";
+    m_status = tr("Could not finish saving the editable draft.");
     emit changed();
     return false;
   }
@@ -722,14 +765,14 @@ void Studio::resumeDraft(const QString &id) {
   QFile metadata(directory + "/" + id + ".json");
   if (!metadata.open(QIODevice::ReadOnly) ||
       metadata.size() > maxDraftMetadataBytes) {
-    m_status = "Could not read that editable draft.";
+    m_status = tr("Could not read that editable draft.");
     emit changed();
     return;
   }
   const QJsonObject document = QJsonDocument::fromJson(metadata.readAll()).object();
   const QJsonArray savedEdits = document.value("edits").toArray();
   if (document.value("version").toInt() != 1 || savedEdits.size() > MarkDocument::MaxEdits) {
-    m_status = "This editable draft is damaged or unsupported.";
+    m_status = tr("This editable draft is damaged or unsupported.");
     emit changed();
     return;
   }
@@ -737,7 +780,7 @@ void Studio::resumeDraft(const QString &id) {
   for (const auto &value : savedEdits) {
     auto edit = Frame::editFromJson(value.toObject());
     if (!edit) {
-      m_status = "This editable draft contains a damaged annotation.";
+      m_status = tr("This editable draft contains a damaged annotation.");
       emit changed();
       return;
     }
@@ -750,7 +793,7 @@ void Studio::resumeDraft(const QString &id) {
   // size. An unreadable header means a damaged file whose size the budget
   // cannot check: reject it rather than decoding on the hope it is small.
   if (!size.isValid() || !ScrollUi::withinImageBudget(size)) {
-    m_status = "This editable draft has an invalid source image.";
+    m_status = tr("This editable draft has an invalid source image.");
     emit changed();
     return;
   }
@@ -759,7 +802,7 @@ void Studio::resumeDraft(const QString &id) {
   // The decoded pixels, not just the header, must fit the budget before this
   // becomes the editable original.
   if (image.isNull() || !ScrollUi::withinImageBudget(image.size())) {
-    m_status = "This editable draft has an invalid source image.";
+    m_status = tr("This editable draft has an invalid source image.");
     emit changed();
     return;
   }
@@ -781,7 +824,7 @@ void Studio::resumeDraft(const QString &id) {
   m_draftId = id;
   m_draftDirty = false;
   m_draftTimer.stop();
-  m_status = "Editable draft reopened.";
+  m_status = tr("Editable draft reopened.");
   startReading();
   scheduleRender();
   emit sourceChanged();
@@ -802,7 +845,7 @@ void Studio::deleteDraft(const QString &id) {
     m_draftId.clear();
     m_draftDirty = false;
   }
-  m_status = removed ? "Editable draft removed." : "Could not remove all draft files.";
+  m_status = removed ? tr("Editable draft removed.") : tr("Could not remove all draft files.");
   refreshDrafts();
 }
 void Studio::clearOriginals() {
@@ -817,9 +860,9 @@ void Studio::clearOriginals() {
       ++failed;
   }
   m_originalsSummary = summarizeOriginals(&m_originalsCount);
-  m_status = failed ? QString("Removed %1 originals; %2 could not be removed.")
+  m_status = failed ? tr("Removed %1 originals; %2 could not be removed.")
                           .arg(removed).arg(failed)
-                    : QString("Removed %1 private originals.").arg(removed);
+                    : tr("Removed %1 private originals.").arg(removed);
   emit changed();
 }
 
@@ -875,6 +918,33 @@ static bool copyPng(const QString &path, QString &error) {
   }
   return copyPngBytes(input.readAll(), error);
 }
+static bool copyPlainText(const QString &text) {
+  QProcess clipboard;
+  clipboard.start("wl-copy", {"--type", "text/plain;charset=utf-8"});
+  if (!clipboard.waitForStarted(3000))
+    return false;
+  clipboard.write(text.toUtf8());
+  clipboard.closeWriteChannel();
+  const bool copied = clipboard.waitForFinished(3000) &&
+                      clipboard.exitStatus() == QProcess::NormalExit &&
+                      clipboard.exitCode() == 0;
+  if (clipboard.state() != QProcess::NotRunning) {
+    clipboard.kill();
+    clipboard.waitForFinished();
+  }
+  return copied;
+}
+// Readable, sortable names that do not depend on the locale. A numbered
+// suffix keeps two captures from the same second apart.
+QString Studio::capturePath(const QString &folder, const QString &extension,
+                            const QDateTime &when) {
+  const QString stem =
+      folder + "/Framelet-" + when.toString("yyyy-MM-dd_HH-mm-ss");
+  QString path = stem + '.' + extension;
+  for (int n = 2; QFileInfo::exists(path); ++n)
+    path = stem + '-' + QString::number(n) + '.' + extension;
+  return path;
+}
 struct ExportResult {
   QString path, backupPath, error, copyError, backupError, renderError;
   bool copied = false, backupSaved = false;
@@ -907,8 +977,7 @@ void Studio::accept() {
   if (qint64(output.width()) * output.height() > 80000000) {
     if (m_quickMode)
       m_quickState = "failed";
-    m_status = "This canvas would exceed 80 megapixels. Use a smaller border "
-               "or a different aspect ratio.";
+    m_status = tr("This canvas would exceed 80 megapixels. Use a smaller border or a different aspect ratio.");
     emit changed();
     return;
   }
@@ -917,7 +986,7 @@ void Studio::accept() {
   m_backupPath.clear();
   if (m_quickMode)
     m_quickState = "saving";
-  m_status = "Saving full-resolution PNG and copying…";
+  m_status = tr("Saving full-resolution PNG and copying…");
   emit changed();
   const QString originalDirectory = keepOriginals() ? originalsDirectory() : QString();
   auto *watcher = new QFutureWatcher<ExportResult>(this);
@@ -956,13 +1025,13 @@ void Studio::accept() {
                                         originalDirectory] {
     ExportResult r;
     if (!QDir().mkpath(directory)) {
-      r.error = "Could not create the save folder. Choose another folder and try again.";
+      r.error = tr("Could not create the save folder. Choose another folder and try again.");
       return r;
     }
-    const QString id =
-        QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss-zzz") + "-" +
-        QUuid::createUuid().toString(QUuid::Id128).left(6);
-    const QString path = directory + "/Framelet-" + id + ".png";
+    const QDateTime now = QDateTime::currentDateTime();
+    const QString id = now.toString("yyyy-MM-dd_HH-mm-ss-zzz") + "-" +
+                       QUuid::createUuid().toString(QUuid::Id128).left(6);
+    const QString path = capturePath(directory, "png", now);
     const QImage edited = Frame::applyEdits(source, edits, true, &r.renderError);
     if (edited.isNull()) {
       r.error = r.renderError;
@@ -978,7 +1047,7 @@ void Studio::accept() {
       painter.drawImage(0, 0, composed);
     }
     if (!writePng(path, flattened, r.error)) {
-      r.error = "Could not save image: " + r.error;
+      r.error = tr("Could not save image: ") + r.error;
       return r;
     }
     r.path = path;
@@ -1004,7 +1073,7 @@ void Studio::finishDraftRecovery() {
     return;
   }
   if (m_quickMode) m_quickState = "done";
-  m_status = "Screenshot copied and saved. Editable draft recovery completed.";
+  m_status = tr("Screenshot copied and saved. Editable draft recovery completed.");
   emit changed();
   if (m_quickMode) emit dismissRequested();
 }
@@ -1020,7 +1089,7 @@ void Studio::retryOutput() {
   m_busy = true;
   if (m_quickMode)
     m_quickState = "saving";
-  m_status = "Retrying the saved screenshot…";
+  m_status = tr("Retrying the saved screenshot…");
   emit changed();
   auto *watcher = new QFutureWatcher<ExportResult>(this);
   connect(watcher, &QFutureWatcher<ExportResult>::finished, this,
@@ -1065,8 +1134,7 @@ void Studio::setDelaySeconds(int seconds) {
   emit changed();
 }
 void Studio::reportDelayFailure() {
-  m_status = "Screenshot cancelled: could not clear the screenshot surfaces "
-             "or restore Framelet's animations safely.";
+  m_status = tr("Screenshot cancelled: could not clear the screenshot surfaces or restore Framelet's animations safely.");
   emit changed();
 }
 quint64 Studio::beginDelayCleanup() {
@@ -1178,7 +1246,7 @@ void Studio::acquireCapture(bool region, int monitor, bool repeat,
   if (!delayGeneration)
     m_captureBarHidden = false;
   m_pendingFinish = -1;
-  m_status = repeat ? "Capturing the last area…" : "Capturing…";
+  m_status = repeat ? tr("Capturing the last area…") : tr("Capturing…");
   m_frozen.clear();
   m_windowTargets.clear();
   m_pointerMonitor.clear();
@@ -1233,7 +1301,7 @@ void Studio::acquireCapture(bool region, int monitor, bool repeat,
                       m_captureMonitor = result.pointer;
                     m_busy = false;
                     m_quickState = "capture-error";
-                    m_status = "Capture failed: " + result.screens.error;
+                    m_status = tr("Capture failed: ") + result.screens.error;
                     emit changed();
                     emit captureFailed();
                     return;
@@ -1259,8 +1327,8 @@ void Studio::acquireCapture(bool region, int monitor, bool repeat,
                     m_quickState = "selecting";
                     if (repeat)
                       m_status = result.lastAreaDark
-                                     ? "That display is off. Select an area again."
-                                     : "The display changed. Select an area again.";
+                                     ? tr("That display is off. Select an area again.")
+                                     : tr("The display changed. Select an area again.");
                     ++m_revision;
                     emit changed();
                     emit selectionReady(m_frozen.keys());
@@ -1275,6 +1343,7 @@ void Studio::acquireCapture(bool region, int monitor, bool repeat,
                               repeat ? "Repeated area capture" : "Screen capture",
                               false);
                     m_quickState = "choosing";
+                    copyNewCapture();
                     emit changed();
                     emit chooserRequested();
                   }
@@ -1393,6 +1462,7 @@ void Studio::finishSelection(const QString &monitor, double x1, double y1,
                      m_lastArea.right() >= 0.999 && m_lastArea.bottom() >= 0.999;
   loadImage(result, whole ? "Display capture" : "Region capture", false);
   m_quickState = "choosing";
+  copyNewCapture();
   emit changed();
   emit chooserRequested();
 }
@@ -1467,7 +1537,7 @@ void Studio::finishScrollSelection(const QString &monitor, double x1, double y1,
       QPointF(std::clamp(clickX, 0.0, 1.0), std::clamp(clickY, 0.0, 1.0));
   m_busy = true;
   m_quickState = "scrolling";
-  m_status = "Scrolling the page…";
+  m_status = tr("Scrolling the page…");
   emit changed();
   m_scrollCapture->start(monitor, display, plan);
 }
@@ -1481,7 +1551,7 @@ void Studio::scrollFinished(const QImage &image, bool reachedLimit,
     // Nothing was stitched. End the session terminally so the scrolling state
     // and its already-hidden controls do not linger with no way out.
     m_quickState = "cancelled";
-    m_status = "The scrolling capture ended without an image.";
+    m_status = tr("The scrolling capture ended without an image.");
     emit changed();
     emit dismissRequested();
     return;
@@ -1489,13 +1559,13 @@ void Studio::scrollFinished(const QImage &image, bool reachedLimit,
   m_inlineScroll = true;
   loadImage(image, "Scrolling capture", false);
   if (reachedLimit)
-    m_status = "Stopped at the size limit, near the tallest image most "
-               "software opens. Everything captured is here.";
+    m_status = tr("Stopped at the size limit, near the tallest image most software opens. Everything captured is here.");
   else if (!reachedEnd)
-    m_status = "Scrolling stopped early. Everything captured is here.";
+    m_status = tr("Scrolling stopped early. Everything captured is here.");
   else
-    m_status = "Scrolling capture ready.";
+    m_status = tr("Scrolling capture ready.");
   m_quickState = "choosing";
+  copyNewCapture();
   emit changed();
   emit chooserRequested();
 }
@@ -1503,7 +1573,7 @@ void Studio::scrollFailed(const QString &error) {
   m_busy = false;
   emit scrollEnded();
   m_quickState = "capture-error";
-  m_status = error.isEmpty() ? "The scrolling capture failed." : error;
+  m_status = error.isEmpty() ? tr("The scrolling capture failed.") : error;
   emit changed();
   emit captureFailed();
 }
@@ -1511,7 +1581,7 @@ void Studio::scrollCancelled() {
   m_busy = false;
   emit scrollEnded();
   m_quickState = "cancelled";
-  m_status = "Capture cancelled.";
+  m_status = tr("Capture cancelled.");
   emit selectionDone();
   emit changed();
   emit dismissRequested();
@@ -1524,7 +1594,7 @@ void Studio::cancelSelection() {
   m_frozen.clear();
   m_busy = false;
   m_quickState = "cancelled";
-  m_status = "Capture cancelled.";
+  m_status = tr("Capture cancelled.");
   emit selectionDone();
   emit changed();
   emit dismissRequested();
@@ -1591,7 +1661,7 @@ void Studio::copyQuick() {
   m_busy = true;
   m_quickState = "copying";
   m_draftTimer.stop();
-  m_status = "Copying to the clipboard…";
+  m_status = tr("Copying to the clipboard…");
   emit changed();
   struct CopyResult {
     QString error, preview, renderError;
@@ -1611,9 +1681,9 @@ void Studio::copyQuick() {
     }
     m_quickState = error.isEmpty() ? "copied" : "copy-failed";
     m_status = error.isEmpty()
-                   ? "Copied to the clipboard without saving."
-                   : "Clipboard copy failed: " + error +
-                         (m_editing ? " Press Copy to retry." : " Press Ctrl+C to retry.");
+                   ? tr("Copied to the clipboard without saving.")
+                   : tr("Clipboard copy failed: ") + error +
+                         (m_editing ? tr(" Press Copy to retry.") : tr(" Press Ctrl+C to retry."));
     if (!renderError.isEmpty()) m_status += " " + renderError;
     emit changed();
     if (error.isEmpty())
@@ -1778,10 +1848,8 @@ void Studio::hideSecrets() {
     return;
   // Never claim the image is clean: OCR misses things.
   m_textNote = open.size() == 1
-                   ? "Hid 1 possible secret. OCR can miss some, so check "
-                     "before sharing."
-                   : QString("Hid %1 possible secrets. OCR can miss some, so "
-                             "check before sharing.")
+                   ? tr("Hid 1 possible secret. OCR can miss some, so check before sharing.")
+                   : tr("Hid %1 possible secrets. OCR can miss some, so check before sharing.")
                          .arg(open.size());
   m_status = m_textNote;
   emit changed();
@@ -1808,7 +1876,7 @@ void Studio::copyText() {
             if (text)
               writeText(*text);
             else
-              m_textNote = "Could not read the text.";
+              m_textNote = tr("Could not read the text.");
             emit changed();
           });
   // Secret detection reads the original. Copying reads the current crop and
@@ -1838,7 +1906,7 @@ void Studio::cancelTextCopy() {
 void Studio::writeText(const QString &recognized) {
   const QString text = recognized.trimmed();
   if (text.isEmpty()) {
-    m_textNote = "No text found.";
+    m_textNote = tr("No text found.");
     return;
   }
   QProcess clipboard;
@@ -1855,7 +1923,7 @@ void Studio::writeText(const QString &recognized) {
     clipboard.kill();
     clipboard.waitForFinished();
   }
-  m_textNote = copied ? "Copied the text." : "Could not copy the text.";
+  m_textNote = copied ? tr("Copied the text.") : tr("Could not copy the text.");
 }
 
 void Studio::recordInstead(const QString &monitor) {
@@ -1894,39 +1962,50 @@ void Studio::captureVideo() {
 void Studio::deliverInline(bool save) {
   if (m_busy || m_rendering || m_original.isNull()) return;
   m_busy = true;
-  m_status = save ? "Saving…" : "Copying…";
+  m_status = save ? tr("Saving…") : tr("Copying…");
   emit changed();
-  struct Result { bool ok = false; QString path, error; };
+  struct Result { bool ok = false, pathCopied = false; QString path, error; };
+  // Saving also puts the file's path on the clipboard, as text, so it can be
+  // pasted into a terminal, chat or file field. Settings can turn it off.
+  const bool copyPath = save && QSettings().value("copySavedPath", true).toBool();
   auto *watcher = new QFutureWatcher<Result>(this);
-  connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, save] {
+  connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, save, copyPath] {
     const auto r = watcher->result(); watcher->deleteLater(); m_busy = false;
-    m_status = r.ok ? (save ? "Image saved." : "Image copied.") : r.error;
+    if (!r.ok) m_status = r.error;
+    else if (!save) m_status = tr("Image copied.");
+    else if (!copyPath) m_status = tr("Image saved.");
+    else if (r.pathCopied) m_status = tr("Image saved. Its path is on the clipboard.");
+    else m_status = tr("Image saved. Could not copy its path.");
     if (r.ok) { m_savedPath = save ? r.path : QString(); m_quickState = "done"; }
     else m_quickState = "failed";
     emit changed();
     if (r.ok) emit dismissRequested();
   });
-  watcher->setFuture(QtConcurrent::run([source = m_original, edits = m_marks.edits(), directory = m_directory, options = m_options, format=m_exportFormat, scale=m_exportScale, save] {
+  watcher->setFuture(QtConcurrent::run([source = m_original, edits = m_marks.edits(), directory = m_directory, options = m_options, format=m_exportFormat, scale=m_exportScale, save, copyPath] {
     Result r;
     const QString folder = save ? directory : QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/framelet";
-    if (!QDir().mkpath(folder)) { r.error = "Could not create the folder."; return r; }
-    r.path = folder + "/Framelet-" + QUuid::createUuid().toString(QUuid::Id128) + (save && format=="jpeg"?".jpg":".png");
+    if (!QDir().mkpath(folder)) { r.error = tr("Could not create the folder."); return r; }
+    r.path = save ? capturePath(QFileInfo(folder).absoluteFilePath(), format=="jpeg" ? "jpg" : "png")
+                  : folder + "/Framelet-" + QUuid::createUuid().toString(QUuid::Id128) + ".png";
     const QImage marked=Frame::applyEdits(source, edits);
     const QSize output=Frame::outputSize(marked.size(),options,options.custom ? QMargins() : Frame::edgeRoom(marked))*scale;
-    if(output.width()>32000 || output.height()>32000 || qint64(output.width())*output.height()>50000000) { r.error = "The composition is over the size limit. Reduce the margin or the aspect ratio."; return r; }
+    if(output.width()>32000 || output.height()>32000 || qint64(output.width())*output.height()>50000000) { r.error = tr("The composition is over the size limit. Reduce the margin or the aspect ratio."); return r; }
     const QImage composed = Frame::compose(marked, options);
     QImage edited(composed.size(),QImage::Format_ARGB32_Premultiplied);edited.fill(Qt::transparent);
     { QPainter painter(&edited);painter.drawImage(0,0,composed); }
-    if (edited.isNull()) { r.error = "Could not compose the image."; return r; }
+    if (edited.isNull()) { r.error = tr("Could not compose the image."); return r; }
     if(scale>1) edited=edited.scaled(output,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
     if(save && format=="jpeg") {
       QImage opaque(edited.size(),QImage::Format_RGB32);opaque.fill(Qt::white);
       {QPainter painter(&opaque);painter.drawImage(0,0,edited);}
-      QSaveFile file(r.path);if(!file.open(QIODevice::WriteOnly)){r.error="Could not save the image.";return r;}
+      QSaveFile file(r.path);if(!file.open(QIODevice::WriteOnly)){r.error=tr("Could not save the image.");return r;}
       QImageWriter writer(&file,"JPEG");writer.setQuality(95);
-      if(!writer.write(opaque) || !file.commit()){r.error="Could not save the JPEG.";return r;}
+      if(!writer.write(opaque) || !file.commit()){r.error=tr("Could not save the JPEG.");return r;}
     } else if (!writePng(r.path, edited, r.error, !save)) return r;
-    if (save) r.ok = true;
+    if (save) {
+      r.ok = true;
+      if (copyPath) r.pathCopied = copyPlainText(r.path);
+    }
     else { r.ok = copyPng(r.path, r.error); QFile::remove(r.path); }
     return r;
   }));
@@ -2008,14 +2087,14 @@ void Studio::applyLook(const QString &name) {
 void Studio::addImage(const QUrl &file,bool vertical) {
   if(m_busy)return;
   QImageReader reader(file.toLocalFile());reader.setAutoTransform(true);
-  if(!file.isLocalFile() || !ScrollUi::withinImageBudget(reader.size())){m_status="Choose a smaller local image.";emit changed();return;}
+  if(!file.isLocalFile() || !ScrollUi::withinImageBudget(reader.size())){m_status=tr("Choose a smaller local image.");emit changed();return;}
   const QImage other=reader.read();
-  if(other.isNull()){m_status="Could not open that image.";emit changed();return;}
+  if(other.isNull()){m_status=tr("Could not open that image.");emit changed();return;}
   if(m_original.isNull()){loadImage(other,"Composition",false);return;}
   const QImage first=Frame::applyEdits(m_original,m_marks.edits());
   const int gap=24;
   QSize size=vertical?QSize(std::max(first.width(),other.width()),first.height()+other.height()+gap):QSize(first.width()+other.width()+gap,std::max(first.height(),other.height()));
-  if(qint64(size.width())*size.height()>50000000 || size.width()>32000 || size.height()>32000){m_status="That composition is too large.";emit changed();return;}
+  if(qint64(size.width())*size.height()>50000000 || size.width()>32000 || size.height()>32000){m_status=tr("That composition is too large.");emit changed();return;}
   QImage result(size,QImage::Format_ARGB32_Premultiplied);result.fill(Qt::transparent);
   QPainter painter(&result);painter.drawImage(0,0,first);painter.drawImage(vertical?0:first.width()+gap,vertical?first.height()+gap:0,other);painter.end();
   m_inlineScroll=true;loadImage(result,"Composition",false);
@@ -2023,12 +2102,12 @@ void Studio::addImage(const QUrl &file,bool vertical) {
 
 void Studio::makeCodeCard(const QString &text,const QString &language,int pixels,bool numbers) {
   if(m_busy || text.trimmed().isEmpty())return;
-  if(text.size()>256000){m_status="That text is too long for a card.";emit changed();return;}
-  m_busy=true;m_status="Preparing code card…";emit changed();
+  if(text.size()>256000){m_status=tr("That text is too long for a card.");emit changed();return;}
+  m_busy=true;m_status=tr("Preparing code card…");emit changed();
   auto *watcher=new QFutureWatcher<QImage>(this);
   connect(watcher,&QFutureWatcher<QImage>::finished,this,[this,watcher] {
     auto image=watcher->result();watcher->deleteLater();m_busy=false;
-    if(image.isNull()){m_status="Could not create the card. Shorten the text.";emit changed();return;}
+    if(image.isNull()){m_status=tr("Could not create the card. Shorten the text.");emit changed();return;}
     m_inlineScroll=true;loadImage(image,"Code card",false);
   });
   watcher->setFuture(QtConcurrent::run([text,language,pixels,numbers] {
