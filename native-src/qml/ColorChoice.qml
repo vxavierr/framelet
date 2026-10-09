@@ -44,7 +44,7 @@ ColumnLayout {
                 background: Rectangle {
                     radius: theme.radius > 0 ? 4 : 0
                     color: swatch.modelData.color
-                    border.width: swatch.activeFocus || swatch.picked ? 2 : 1
+                    border.width: theme.controlBorder.a > 0 ? (swatch.activeFocus || swatch.picked ? 2 : 1) : 0
                     border.color: swatch.activeFocus ? theme.focusBorder : swatch.picked ? theme.accent : theme.controlBorder
                 }
                 contentItem: Glyph {
@@ -166,7 +166,7 @@ ColumnLayout {
                 background: Rectangle {
                     color: theme.well
                     radius: theme.radius
-                    border.width: hex.activeFocus ? 2 : 1
+                    border.width: theme.controlBorder.a > 0 ? (hex.activeFocus ? 2 : 1) : 0
                     border.color: !hex.validHex ? theme.urgent : hex.activeFocus ? theme.focusBorder : theme.controlBorder
                 }
             }

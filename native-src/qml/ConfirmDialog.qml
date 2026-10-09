@@ -22,7 +22,7 @@ Popup {
     background: Rectangle {
         color: theme.alpha(theme.background, 1)
         radius: theme.radius
-        border.width: 2
+        border.width: theme.controlBorder.a > 0 ? (2) : 0
         border.color: theme.frame
     }
     contentItem: ColumnLayout {

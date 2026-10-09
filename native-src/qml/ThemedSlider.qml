@@ -35,7 +35,7 @@ Slider {
         height: 14
         radius: theme.radius > 0 ? 7 : 0
         color: control.pressed ? theme.mix(theme.accent, theme.text, 0.2) : theme.accent
-        border.width: control.activeFocus || control.hovered ? 2 : 0
+        border.width: theme.controlBorder.a > 0 ? (control.activeFocus || control.hovered ? 2 : 0) : 0
         border.color: theme.focusBorder
     }
 }

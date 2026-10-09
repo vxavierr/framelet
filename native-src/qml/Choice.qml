@@ -22,7 +22,7 @@ ComboBox {
     background: Rectangle {
         radius: theme.radius
         color: control.down ? theme.pressedFill : control.hovered ? theme.hoverFill : theme.controlFill
-        border.width: control.activeFocus ? 2 : 1
+        border.width: theme.controlBorder.a > 0 ? (control.activeFocus ? 2 : 1) : 0
         border.color: control.activeFocus ? theme.focusBorder : control.hovered ? theme.hoverBorder : theme.controlBorder
     }
     indicator: Glyph {
@@ -42,7 +42,7 @@ ComboBox {
         background: Rectangle {
             color: theme.alpha(theme.background, 1)
             radius: theme.radius
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: theme.frame
         }
         contentItem: ListView {

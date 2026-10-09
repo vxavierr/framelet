@@ -493,7 +493,7 @@ Item {
         background: Rectangle {
             radius: theme.radius
             color: field.activeFocus ? theme.controlFill : field.hovered ? theme.hoverFill : theme.controlFill
-            border.width: field.activeFocus ? 2 : 1
+            border.width: theme.controlBorder.a > 0 ? (field.activeFocus ? 2 : 1) : 0
             border.color: field.activeFocus ? theme.focusBorder : field.hovered ? theme.hoverBorder : theme.controlBorder
         }
     }
@@ -575,7 +575,7 @@ Item {
                 implicitHeight: 26
                 radius: theme.radius
                 color: theme.alpha(theme.accent, 0.14)
-                border.width: 1
+                border.width: theme.controlBorder.a > 0 ? (1) : 0
                 border.color: theme.alpha(theme.accent, 0.5)
                 RowLayout {
                     id: savedRow
@@ -599,7 +599,7 @@ Item {
                     x: Math.min(0, pane.width - cameraMenuButton.x - width - 22)
                     width: 280; padding: 16; modal: true; focus: true
                     closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
-                    background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: 2; border.color: theme.frame }
+                    background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: theme.controlBorder.a > 0 ? (2) : 0; border.color: theme.frame }
                     contentItem: ColumnLayout {
                         spacing: 10
                         Text { textFormat: Text.PlainText; text: "Camera overlay"; color: theme.text; font.pixelSize: 14; font.weight: Font.Medium }
@@ -817,7 +817,7 @@ Item {
                 height: 64
                 radius: theme.radius > 0 ? 32 : 0
                 color: theme.alpha(theme.background, 0.78)
-                border.width: 1
+                border.width: theme.controlBorder.a > 0 ? (1) : 0
                 border.color: theme.alpha(theme.text, 0.14)
                 opacity: pane.editable && !pane.playing && pane.tool === "select" && !markCanvas.dragging && (stageMouse.containsMouse || markCanvas.hovered) ? 1 : 0
                 visible: opacity > 0
@@ -860,7 +860,7 @@ Item {
                 height: Math.min(stage.height - 24, playbackError.implicitHeight + 30)
                 radius: theme.radius
                 color: theme.alpha(theme.urgent, 0.1)
-                border.width: 1
+                border.width: theme.controlBorder.a > 0 ? (1) : 0
                 border.color: theme.alpha(theme.urgent, 0.4)
                 Text {
                     textFormat: Text.PlainText
@@ -1392,7 +1392,7 @@ Item {
                         width: Math.max(2, track.xFor(pane.cuts[index].end) - x)
                         height: track.height
                         color: theme.alpha(theme.background, 0.62)
-                        border.width: pane.selectedCut === index ? 2 : 1
+                        border.width: theme.controlBorder.a > 0 ? (pane.selectedCut === index ? 2 : 1) : 0
                         border.color: theme.urgent
                         clip: true
                         Canvas {
@@ -1418,7 +1418,7 @@ Item {
                             height: 18
                             radius: theme.radius
                             color: theme.alpha(theme.background, 0.9)
-                            border.width: 1
+                            border.width: theme.controlBorder.a > 0 ? (1) : 0
                             border.color: theme.urgent
                             Text {
                                 textFormat: Text.PlainText
@@ -1551,7 +1551,7 @@ Item {
                         radius: theme.radius > 0 ? height / 2 : 0
                         z: chosen ? 1 : 0
                         color: chosen ? theme.accent : theme.alpha(theme.text, 0.22)
-                        border.width: 1
+                        border.width: theme.controlBorder.a > 0 ? (1) : 0
                         border.color: chosen ? theme.accent : theme.alpha(theme.background, 0.8)
                         Accessible.role: Accessible.Button
                         Accessible.name: pane.markName(modelData.type) + " from " + pane.time(modelData.start) + " to " + pane.time(modelData.end)

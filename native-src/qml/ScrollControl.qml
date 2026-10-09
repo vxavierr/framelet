@@ -43,7 +43,7 @@ Window {
         anchors.fill: parent
         radius: theme.radius
         color: theme.alpha(theme.background, 1)
-        border.width: 2
+        border.width: theme.controlBorder.a > 0 ? (2) : 0
         border.color: control.capture !== null && control.capture.warning ? theme.urgent : theme.frame
         // Clicks inside the control never reach the page beneath it.
         MouseArea { anchors.fill: parent }

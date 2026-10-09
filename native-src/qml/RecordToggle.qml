@@ -21,7 +21,7 @@ CheckBox {
         height: 22
         radius: theme.radius > 0 ? height / 2 : 0
         color: control.checked ? theme.selectedFill : control.hovered ? theme.hoverFill : theme.controlFill
-        border.width: control.activeFocus ? 2 : control.checked ? 0 : 1
+        border.width: theme.controlBorder.a > 0 ? (control.activeFocus ? 2 : control.checked ? 0 : 1) : 0
         border.color: control.activeFocus ? theme.focusBorder : control.hovered ? theme.hoverBorder : theme.controlBorder
         Behavior on color { ColorAnimation { duration: 120 } }
         Rectangle {

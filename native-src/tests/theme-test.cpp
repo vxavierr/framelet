@@ -143,6 +143,31 @@ private slots:
     QCOMPARE(omarchy.urgent(), QColor("#ff5555"));
   }
 
+
+  void borderlessControlsFollowOverridesAndThemeSwitches() {
+    QTemporaryDir state, config;
+    applyTheme(state.path(), "Focus", "background = \"#111111\"\nforeground = \"#eeeeee\"\naccent = \"#44aa88\"\n");
+    OmarchyTheme theme(nullptr, state.path(), config.path(), false);
+    QCOMPARE(theme.focusBorder(), theme.accent());
+    QSignalSpy changed(&theme, &OmarchyTheme::changed);
+    write(config.path() + "/shell.toml",
+          "[controls]\nnormal-border-alpha = 0\nhover-cursor-border-alpha = 0\nfocus-border-width = 0\nfocus-border-alpha = 0\n");
+    QTRY_COMPARE_WITH_TIMEOUT(theme.focusBorder().alpha(), 0, 3000);
+    QCOMPARE(theme.controlBorder().alpha(), 0);
+    QCOMPARE(theme.hoverBorder().alpha(), 0);
+    QVERIFY(theme.controlFill().alpha() > 0);
+    QVERIFY(theme.hoverFill().alpha() > 0);
+    applyTheme(state.path(), "Other", "background = \"#222222\"\nforeground = \"#ffffff\"\naccent = \"#ee5500\"\n");
+    QTRY_COMPARE_WITH_TIMEOUT(theme.name(), QString("Other"), 3000);
+    QCOMPARE(theme.focusBorder().alpha(), 0);
+    QCOMPARE(theme.controlBorder().alpha(), 0);
+    changed.clear();
+    write(config.path() + "/shell.toml",
+          "[controls]\nnormal-border-alpha = 0\nhover-cursor-border-alpha = 0\nfocus-border-width = 2\nfocus-border-alpha = 0.5\n");
+    QTRY_VERIFY_WITH_TIMEOUT(changed.count() > 0, 3000);
+    QVERIFY(qAbs(theme.focusBorder().alphaF() - 0.5) < 0.01);
+  }
+
   void withoutOmarchyUsesShellDefaults() {
     QTemporaryDir state, config;
     OmarchyTheme omarchy(nullptr, state.path() + "/missing", config.path() + "/missing", false);

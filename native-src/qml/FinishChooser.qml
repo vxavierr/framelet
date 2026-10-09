@@ -77,7 +77,7 @@ Window {
             height: chooser.captureError ? 270 : Math.min(728, chooser.height - 48)
             radius: theme.radius
             color: theme.alpha(theme.background, 1)
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: theme.frame
             // Keep clicks in panel whitespace from dismissing the capture.
             MouseArea {anchors.fill: parent}
@@ -139,7 +139,7 @@ Window {
                                 radius: theme.radius
                                 color: tile.down ? theme.pressedFill : tile.hovered || tile.activeFocus ? theme.hoverFill : theme.controlFill
                                 border.color: tile.activeFocus ? theme.focusBorder : studio.style === tile.index ? theme.selectedText : tile.hovered ? theme.hoverBorder : theme.controlBorder
-                                border.width: studio.style === tile.index || tile.activeFocus ? 2 : 1
+                                border.width: theme.controlBorder.a > 0 ? (studio.style === tile.index || tile.activeFocus ? 2 : 1) : 0
                                 Behavior on color {ColorAnimation {duration: 90}}
                             }
                             contentItem: Item {
@@ -159,7 +159,7 @@ Window {
                                     id: labelRow
                                     anchors {left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 11; rightMargin: 11; bottomMargin: 9}
                                     spacing: 9
-                                    Rectangle {width: 22; height: 22; radius: theme.radius; color: studio.style === tile.index ? theme.selectedFill : "transparent"; border.width: 1; border.color: theme.controlBorder; Text { textFormat: Text.PlainText;anchors.centerIn: parent; text: tile.index+1; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 11}}
+                                    Rectangle {width: 22; height: 22; radius: theme.radius; color: studio.style === tile.index ? theme.selectedFill : "transparent"; border.width: theme.controlBorder.a > 0 ? (1) : 0; border.color: theme.controlBorder; Text { textFormat: Text.PlainText;anchors.centerIn: parent; text: tile.index+1; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 11}}
                                     Text { textFormat: Text.PlainText;text: studio.styles[tile.index]; color: theme.text; font.family: theme.fontFamily; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight}
                                     Text { textFormat: Text.PlainText;visible: tile.width >= 220; text: tile.index===8 ? "No border" : studio.style===tile.index ? "Last used" : ""; color: studio.style===tile.index ? theme.selectedText : theme.muted; font.family: theme.fontFamily; font.pixelSize: 11}
                                 }

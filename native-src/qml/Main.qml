@@ -348,7 +348,7 @@ ApplicationWindow {
         background: Rectangle {
             color: theme.alpha(theme.background, 1)
             radius: theme.radius
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: theme.frame
         }
         contentItem: ColumnLayout {
@@ -432,7 +432,7 @@ ApplicationWindow {
         background: Rectangle {
             color: theme.alpha(theme.background, 1)
             radius: theme.radius
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: theme.frame
         }
         ColumnLayout {
@@ -498,7 +498,7 @@ ApplicationWindow {
         background: Rectangle {
             color: theme.alpha(theme.background, 1)
             radius: theme.radius
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: theme.frame
         }
         contentItem: ScrollView {
@@ -709,7 +709,7 @@ ApplicationWindow {
                 Layout.preferredHeight: 132
                 radius: theme.radius
                 color: cardMouse.pressed ? theme.pressedFill : cardMouse.containsMouse ? theme.hoverFill : theme.controlFill
-                border.width: card.activeFocus ? 2 : 1
+                border.width: theme.controlBorder.a > 0 ? (card.activeFocus ? 2 : 1) : 0
                 border.color: card.activeFocus ? theme.focusBorder : card.accent ? theme.alpha(theme.accent, 0.7) : cardMouse.containsMouse ? theme.hoverBorder : theme.controlBorder
                 activeFocusOnTab: true
                 Accessible.role: Accessible.Button
@@ -732,7 +732,7 @@ ApplicationWindow {
                             implicitHeight: 22
                             radius: theme.radius
                             color: "transparent"
-                            border.width: 1
+                            border.width: theme.controlBorder.a > 0 ? (1) : 0
                             border.color: theme.controlBorder
                             Text { textFormat: Text.PlainText; id: keyLabel; anchors.centerIn: parent; text: card.key; color: theme.muted; font.family: theme.fontFamily; font.pixelSize: 11 }
                         }
@@ -813,7 +813,7 @@ ApplicationWindow {
                     implicitHeight: welcomeColumn.implicitHeight + 36
                     radius: theme.radius
                     color: theme.alpha(theme.accent, 0.07)
-                    border.width: 1
+                    border.width: theme.controlBorder.a > 0 ? (1) : 0
                     border.color: theme.alpha(theme.accent, 0.35)
                     ColumnLayout {
                         id: welcomeColumn
@@ -855,7 +855,7 @@ ApplicationWindow {
                     implicitHeight: shortcutColumn.implicitHeight + 36
                     radius: theme.radius
                     color: theme.controlFill
-                    border.width: 1
+                    border.width: theme.controlBorder.a > 0 ? (1) : 0
                     border.color: theme.controlBorder
                     ColumnLayout {
                         id: shortcutColumn
@@ -885,7 +885,7 @@ ApplicationWindow {
                                 Layout.preferredHeight: 64
                                 radius: theme.radius
                                 color: draftMouse.containsMouse ? theme.hoverFill : theme.controlFill
-                                border.width: activeFocus ? 2 : 1
+                                border.width: theme.controlBorder.a > 0 ? (activeFocus ? 2 : 1) : 0
                                 border.color: activeFocus ? theme.focusBorder : theme.controlBorder
                                 activeFocusOnTab: true
                                 Accessible.role: Accessible.Button
@@ -1371,7 +1371,7 @@ ApplicationWindow {
                                         height: 68
                                         radius: theme.radius
                                         color: styleMouse.containsMouse ? theme.hoverFill : theme.well
-                                        border.width: studio.style === index || finishChoice.activeFocus ? 2 : 1
+                                        border.width: theme.controlBorder.a > 0 ? (studio.style === index || finishChoice.activeFocus ? 2 : 1) : 0
                                         border.color: finishChoice.activeFocus ? theme.focusBorder : studio.style === index ? theme.selectedText : styleMouse.containsMouse ? theme.hoverBorder : theme.controlBorder
                                         Image {
                                             anchors.fill: parent
@@ -1608,7 +1608,7 @@ ApplicationWindow {
                         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
                         onOpened: gifAction.forceActiveFocus()
                         readonly property bool current: video.gifPath.length > 0 && root.gifSignature === videoPane.signature
-                        background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: 2; border.color: theme.frame }
+                        background: Rectangle { color: theme.alpha(theme.background, 1); radius: theme.radius; border.width: theme.controlBorder.a > 0 ? (2) : 0; border.color: theme.frame }
                         contentItem: ColumnLayout {
                             spacing: 12
                             Text { textFormat: Text.PlainText; text: "Export GIF"; color: theme.text; font.pixelSize: 15; font.weight: Font.Medium }

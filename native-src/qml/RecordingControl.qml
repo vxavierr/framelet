@@ -39,7 +39,7 @@ Window {
         height: 48
         radius: theme.radius
         color: theme.alpha(theme.background, 1)
-        border.width: 2
+        border.width: theme.controlBorder.a > 0 ? (2) : 0
         border.color: theme.recording
         RowLayout {
             anchors.fill: parent

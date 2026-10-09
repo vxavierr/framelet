@@ -13,7 +13,7 @@ Rectangle {
     visible: ready && text.length > 0
     radius: theme.radius
     color: theme.alpha(theme.background, 1)
-    border.width: 1
+    border.width: theme.controlBorder.a > 0 ? (1) : 0
     border.color: theme.controlBorder
     onTextChanged: {
         delay.stop();

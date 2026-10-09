@@ -44,7 +44,7 @@ Window {
             anchors.fill: parent
             radius: theme.radius
             color: theme.alpha(theme.background, 1)
-            border.width: 2
+            border.width: theme.controlBorder.a > 0 ? (2) : 0
             border.color: recorder.state === "failed" ? theme.urgent : theme.frame
             ScrollView {
                 id: optionsScroll
@@ -188,7 +188,7 @@ Window {
                         radius: theme.radius
                         readonly property color tone: recorder.needsStopShortcut ? theme.urgent : recorder.hasTarget ? theme.accent : theme.text
                         color: theme.alpha(tone, 0.07)
-                        border.width: 1
+                        border.width: theme.controlBorder.a > 0 ? (1) : 0
                         border.color: theme.alpha(tone, 0.35)
                         ColumnLayout {
                             id: stopColumn

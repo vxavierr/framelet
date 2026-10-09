@@ -31,7 +31,7 @@ RowLayout {
         background: Rectangle {
             radius: theme.radius
             color: stepButton.down ? theme.pressedFill : stepButton.hovered ? theme.hoverFill : theme.controlFill
-            border.width: 1
+            border.width: theme.controlBorder.a > 0 ? (1) : 0
             border.color: stepButton.hovered ? theme.hoverBorder : theme.controlBorder
         }
         contentItem: Text {
@@ -81,7 +81,7 @@ RowLayout {
         }
         background: Rectangle {
             color: theme.well
-            border.width: input.activeFocus ? 2 : 1
+            border.width: theme.controlBorder.a > 0 ? (input.activeFocus ? 2 : 1) : 0
             border.color: input.activeFocus ? theme.focusBorder : theme.controlBorder
         }
     }

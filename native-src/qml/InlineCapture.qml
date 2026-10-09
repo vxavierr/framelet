@@ -139,7 +139,7 @@ ApplicationWindow {
         width: Math.min(root.width - 24, buttons.implicitWidth + 20)
         height: 54
         color: theme.alpha(theme.background, 1); radius: 12
-        border.width: 1; border.color: theme.controlBorder
+        border.width: theme.controlBorder.a > 0 ? (1) : 0; border.color: theme.controlBorder
         RowLayout {
             id: buttons; anchors.fill: parent; anchors.margins: 10
             spacing: 3
@@ -197,7 +197,7 @@ ApplicationWindow {
         Overlay.modal: Rectangle { color: "transparent" }
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
         onAboutToShow: root.finishing = true
-        background: Rectangle { color: theme.alpha(theme.background,1); radius: 12; border.width: 1; border.color: theme.controlBorder }
+        background: Rectangle { color: theme.alpha(theme.background,1); radius: 12; border.width: theme.controlBorder.a > 0 ? (1) : 0; border.color: theme.controlBorder }
         contentItem: ScrollView {
             clip: true; contentWidth: availableWidth
             ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
@@ -223,7 +223,7 @@ ApplicationWindow {
                             contentItem: Column {
                                 spacing: 4
                                 Row { spacing: 7
-                                    Rectangle { width:14;height:14;radius:3;color:modelData.color;border.width:1;border.color:theme.controlBorder }
+                                    Rectangle { width:14;height:14;radius:3;color:modelData.color;border.width:theme.controlBorder.a > 0 ? (1) : 0;border.color:theme.controlBorder }
                                     Text { textFormat: Text.PlainText; text:modelData.name;color:theme.text;font.family:theme.fontFamily;font.pixelSize:12;font.weight:Font.DemiBold }
                                 }
                                 Text { textFormat: Text.PlainText; text:modelData.detail;color:theme.muted;font.family:theme.fontFamily;font.pixelSize:10 }
@@ -301,7 +301,7 @@ ApplicationWindow {
         x:(parent.width-width)/2;y:(parent.height-height)/2
         padding:24;modal:true;focus:true
         closePolicy:Popup.CloseOnEscape
-        background:Rectangle{color:theme.alpha(theme.background,1);radius:12;border.width:1;border.color:theme.controlBorder}
+        background:Rectangle{color:theme.alpha(theme.background,1);radius:12;border.width:theme.controlBorder.a > 0 ? (1) : 0;border.color:theme.controlBorder}
         onOpened:codeEditor.forceActiveFocus()
         contentItem:ColumnLayout {
             spacing:16

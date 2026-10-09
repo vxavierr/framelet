@@ -207,7 +207,7 @@ void OmarchyTheme::reload() {
 
   const auto old = std::tuple(background_, text_, accent_, urgent_, recording_, frame_, popupFrame_, scrim_,
                               selectedText_, controlFill_, hoverFill_, selectedFill_, controlBorder_,
-                              hoverBorder_, well_, name_, dark_);
+                              hoverBorder_, focusBorder_, well_, name_, dark_);
   background_ = surface(QStringLiteral("menu"), QStringLiteral("background"), bg, 1.0);
   const QColor opaque = alpha(background_, 1.0);
   text_ = role(shell_.value(QStringLiteral("menu.text")), foreground);
@@ -240,14 +240,17 @@ void OmarchyTheme::reload() {
                        number(QStringLiteral("controls.hover-cursor-border-alpha"), 0.25));
   // Omarchy's focus state mirrors hover (25% alpha), which is too quiet for
   // a keyboard-first capture flow; the accent keeps focus unmistakable.
-  focusBorder_ = accent_;
+  // Shared borderless preference applies to keyboard focus as well.
+  focusBorder_ = number(QStringLiteral("controls.focus-border-width"), 1) <= 0
+      ? QColor(Qt::transparent)
+      : alpha(accent_, number(QStringLiteral("controls.focus-border-alpha"), 1.0));
 
   rearm();
   if (queryHyprland_)
     readRounding();
   const auto now = std::tuple(background_, text_, accent_, urgent_, recording_, frame_, popupFrame_, scrim_,
                               selectedText_, controlFill_, hoverFill_, selectedFill_, controlBorder_,
-                              hoverBorder_, well_, name_, dark_);
+                              hoverBorder_, focusBorder_, well_, name_, dark_);
   if (now != old)
     emit changed();
 }
