@@ -81,6 +81,8 @@ private slots:
     QVERIFY(QFileInfo(saved).isAbsolute() && QFile::exists(saved));
     QFile clip(copied);QVERIFY(clip.open(QIODevice::ReadOnly));
     QCOMPARE(QString::fromUtf8(clip.readAll()),saved);
+    QFile args(copied+".args");QVERIFY(args.open(QIODevice::ReadOnly));
+    QCOMPARE(QString::fromUtf8(args.readAll()).trimmed(),QString("--type text/plain;charset=utf-8"));
     QCOMPARE(studio.status(),QString("Image saved. Its path is on the clipboard."));
     // A second save in the same second gets a numbered name, never an overwrite.
     const QDateTime when(QDate(2026,10,9),QTime(14,2,11));
@@ -202,7 +204,7 @@ int main(int argc,char**argv) {
   // so a stand-in wl-copy writes to INLINE_COPY_DEST or discards the data.
   QTemporaryDir stubs;if(!stubs.isValid())return 1;
   QFile stub(stubs.path()+"/wl-copy");if(!stub.open(QIODevice::WriteOnly))return 1;
-  stub.write("#!/bin/sh\nif [ -n \"$INLINE_COPY_DEST\" ]; then /usr/bin/cat > \"$INLINE_COPY_DEST\"; else /usr/bin/cat > /dev/null; fi\n");stub.close();
+  stub.write("#!/bin/sh\nif [ -n \"$INLINE_COPY_DEST\" ]; then printf '%s\\n' \"$*\" > \"$INLINE_COPY_DEST.args\"; /usr/bin/cat > \"$INLINE_COPY_DEST\"; else /usr/bin/cat > /dev/null; fi\n");stub.close();
   stub.setPermissions(QFile::ReadOwner|QFile::WriteOwner|QFile::ExeOwner);
   qputenv("PATH",stubs.path().toUtf8()+":"+qgetenv("PATH"));
   InlineDeliveryTest test;return QTest::qExec(&test,argc,argv);

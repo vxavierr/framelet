@@ -261,6 +261,12 @@ private slots:
     QCOMPARE(stroke.points.first(), marks.cropBounds().topLeft());
     QCOMPARE(stroke.points.last(), marks.cropBounds().bottomRight());
     QCOMPARE(stroke.to, marks.cropBounds().bottomRight());
+    // Framelet's tapered brush goes through the same path.
+    marks.addStroke(points, "brush");
+    const auto &brush = marks.edits().last();
+    QCOMPARE(brush.type, QString("brush"));
+    QCOMPARE(brush.points.size(), 2048);
+    QCOMPARE(brush.points.last(), marks.cropBounds().bottomRight());
   }
   void constrainedDraftKeepsFloatingGeometry() {
     ImageStore store;
