@@ -23,14 +23,22 @@ say() { notify-send --app-name=Framelet "Framelet" "$($portuguese && printf '%s'
 # Build on first use, and again after an update changes the plugin version.
 expected="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$plugin_dir/manifest.json" | head -n 1)"
 built="$(cat "$plugin_dir/native/version" 2>/dev/null || true)"
-if [[ ! -x "$plugin_dir/native/capture-engine" || "$built" != "$expected" ]]; then
+failed="$(cat "$plugin_dir/native/failed-version" 2>/dev/null || true)"
+# After a failed update the previous engine stays in use; build.sh retries.
+if [[ ! -x "$plugin_dir/native/capture-engine" || ( "$built" != "$expected" && "$failed" != "$expected" ) ]]; then
   say "Building the capture engine for Framelet $expected. This can take a few minutes." \
       "Compilando o motor do Framelet $expected. Isso pode levar alguns minutos."
   # One build at a time; a second capture waits, then finds the engine ready.
   if ! flock "$plugin_dir/.build.lock" nice -n 10 "$plugin_dir/build.sh" >"$TMPDIR/build.log" 2>&1; then
-    say "The capture engine needs to be built. See build.sh and the requirements in the README." \
-        "O motor precisa ser compilado. Veja build.sh e os requisitos no README."
-    exit 1
+    if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
+      say "The capture engine needs to be built. See build.sh and the requirements in the README." \
+          "O motor precisa ser compilado. Veja build.sh e os requisitos no README."
+      exit 1
+    fi
+    # Keep capturing with the previous engine; newer menu entries may not work.
+    printf '%s\n' "$expected" > "$plugin_dir/native/failed-version"
+    say "Could not update the capture engine, so the previous one is still in use. Run build.sh to see what is missing." \
+        "Não foi possível atualizar o motor; o anterior continua em uso. Rode build.sh para ver o que falta."
   fi
 fi
 "$plugin_dir/native/capture-engine" "$@" &
