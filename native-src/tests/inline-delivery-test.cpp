@@ -101,6 +101,37 @@ private slots:
     QCOMPARE(studio.status(),QString("Image saved."));
     QSettings().remove("copySavedPath");qunsetenv("INLINE_COPY_DEST");
   }
+  void copyRightAwayOnlyForNewCaptures() {
+    QTemporaryDir folder; QVERIFY(folder.isValid());
+    const QString copied=folder.path()+"/clipboard.bin";
+    qputenv("INLINE_COPY_DEST",copied.toUtf8());
+    QSettings().setValue("copyOnCapture",true);
+    ImageStore store; Studio studio(&store,false);
+    studio.setStyle(8);studio.configureFraming({{"custom",false},{"exportFormat","png"},{"exportScale",1}});
+    QImage source(64,48,QImage::Format_RGB32);source.fill(Qt::green);
+    // Opening a file or a code card is not a capture: the clipboard stays.
+    QSignalSpy code(&studio,&Studio::codeCardRequested);
+    QVERIFY(studio.openInline(source,true));
+    QCOMPARE(code.count(),1);
+    QVERIFY(studio.openInline(source,false));
+    QCOMPARE(code.count(),1);
+    QTest::qWait(300);
+    QVERIFY(!QFile::exists(copied));
+    QVERIFY(!studio.openInline(QImage(),false));
+    // A finished capture is copied as soon as it arrives.
+    studio.scrollFinished(source,false,true);
+    QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(copied) && QImage(copied).size()==source.size(),5000);
+    QTRY_VERIFY_WITH_TIMEOUT(!studio.rendering(),5000);
+    // The overlay's copy waits for that early copy and replaces it.
+    studio.marks()->edit("arrow",0.1,0.2,0.8,0.8);
+    QTRY_VERIFY_WITH_TIMEOUT(!studio.rendering(),5000);
+    QSignalSpy finished(&studio,&Studio::dismissRequested);
+    studio.deliverInline(false);
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(),1,5000);
+    QCOMPARE(QImage(copied).convertToFormat(QImage::Format_RGB32),
+             Frame::applyEdits(source,studio.marks()->edits()).convertToFormat(QImage::Format_RGB32));
+    QSettings().remove("copyOnCapture");qunsetenv("INLINE_COPY_DEST");
+  }
   void copyUsesTransientFileAndKeepsFailuresOpen() {
     QTemporaryDir folder; QVERIFY(folder.isValid());
     const QByteArray oldPath=qgetenv("PATH");

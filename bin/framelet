@@ -4,12 +4,13 @@ plugin_dir="$(cd -- "$(dirname -- "$0")/.." && pwd)"
 export TMPDIR="${XDG_RUNTIME_DIR:-$HOME/.cache}/framelet/tmp"
 mkdir -p -- "$TMPDIR"
 export LD_LIBRARY_PATH="$plugin_dir/native/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-status=1
-# The engine leaves the framelet submap itself. Reset it here only after a
-# failure, so an invocation that just forwards a command to an open Framelet
-# window does not take Super+C/S away from that window's capture overlay.
+status=0
+# The engine leaves the framelet submap itself, also when it fails. Reset it
+# here only after a crash or a kill, so an invocation that just forwards a
+# command to an open Framelet window (and may answer "busy") does not take
+# Super+C/S away from that window's capture overlay.
 cleanup() {
-  if [[ $status -ne 0 && "$(hyprctl submap 2>/dev/null)" == "framelet" ]]; then
+  if (( status >= 128 )) && [[ "$(hyprctl submap 2>/dev/null)" == "framelet" ]]; then
     hyprctl dispatch 'hl.dsp.submap("reset")' >/dev/null 2>&1
   fi
 }
@@ -22,24 +23,34 @@ fi
 say() { notify-send --app-name=Framelet "Framelet" "$($portuguese && printf '%s' "$2" || printf '%s' "$1")" 2>/dev/null || true; }
 # Build on first use, and again after an update changes the plugin version.
 expected="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$plugin_dir/manifest.json" | head -n 1)"
-built="$(cat "$plugin_dir/native/version" 2>/dev/null || true)"
-failed="$(cat "$plugin_dir/native/failed-version" 2>/dev/null || true)"
 # After a failed update the previous engine stays in use; build.sh retries.
-if [[ ! -x "$plugin_dir/native/capture-engine" || ( "$built" != "$expected" && "$failed" != "$expected" ) ]]; then
-  say "Building the capture engine for Framelet $expected. This can take a few minutes." \
-      "Compilando o motor do Framelet $expected. Isso pode levar alguns minutos."
-  # One build at a time; a second capture waits, then finds the engine ready.
-  if ! flock "$plugin_dir/.build.lock" nice -n 10 "$plugin_dir/build.sh" >"$TMPDIR/build.log" 2>&1; then
-    if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
-      say "The capture engine needs to be built. See build.sh and the requirements in the README." \
-          "O motor precisa ser compilado. Veja build.sh e os requisitos no README."
-      exit 1
+needs_build() {
+  local built failed
+  built="$(cat "$plugin_dir/native/version" 2>/dev/null || true)"
+  failed="$(cat "$plugin_dir/native/failed-version" 2>/dev/null || true)"
+  [[ ! -x "$plugin_dir/native/capture-engine" || ( "$built" != "$expected" && "$failed" != "$expected" ) ]]
+}
+if needs_build; then
+  # One build at a time. A capture that waited for another launcher's build
+  # checks again and uses that result instead of building twice.
+  exec 9>"$plugin_dir/.build.lock"
+  flock 9
+  if needs_build; then
+    say "Building the capture engine for Framelet $expected. This can take a few minutes." \
+        "Compilando o motor do Framelet $expected. Isso pode levar alguns minutos."
+    if ! nice -n 10 "$plugin_dir/build.sh" >"$TMPDIR/build.log" 2>&1; then
+      if [[ ! -x "$plugin_dir/native/capture-engine" ]]; then
+        say "The capture engine needs to be built. See build.sh and the requirements in the README." \
+            "O motor precisa ser compilado. Veja build.sh e os requisitos no README."
+        exit 1
+      fi
+      # Keep capturing with the previous engine; newer menu entries may not work.
+      printf '%s\n' "$expected" > "$plugin_dir/native/failed-version"
+      say "Could not update the capture engine, so the previous one is still in use. Run build.sh to see what is missing." \
+          "Não foi possível atualizar o motor; o anterior continua em uso. Rode build.sh para ver o que falta."
     fi
-    # Keep capturing with the previous engine; newer menu entries may not work.
-    printf '%s\n' "$expected" > "$plugin_dir/native/failed-version"
-    say "Could not update the capture engine, so the previous one is still in use. Run build.sh to see what is missing." \
-        "Não foi possível atualizar o motor; o anterior continua em uso. Rode build.sh para ver o que falta."
   fi
+  exec 9>&-
 fi
 "$plugin_dir/native/capture-engine" "$@" &
 framelet_child=$!

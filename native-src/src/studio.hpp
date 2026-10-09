@@ -6,6 +6,7 @@
 #include "scroll-capture.hpp"
 #include "stitch.hpp"
 #include <QDateTime>
+#include <QFuture>
 #include <QMutex>
 #include <QObject>
 #include <QQuickImageProvider>
@@ -178,6 +179,8 @@ public:
   QRectF inlineArea() const { return m_lastArea; }
   bool inlineScroll() const { return m_inlineScroll; }
   Q_INVOKABLE void deliverInline(bool save);
+  /** Opens an image, or a code card, in the capture overlay. */
+  bool openInline(const QImage &image, bool codeCard);
   /** Framelet-yyyy-MM-dd_HH-mm-ss.ext in folder, numbered when taken. */
   static QString capturePath(const QString &folder, const QString &extension,
                              const QDateTime &when = QDateTime::currentDateTime());
@@ -365,6 +368,9 @@ signals:
   void sourceChanged();
   void videoRequested(const QUrl &url);
   void chooserRequested();
+  /** The overlay opens its code card panel. */
+  void codeCardRequested();
+  void languageChanged();
   void editorRequested();
   void dismissRequested();
   void draftSaveFailed();
@@ -380,6 +386,7 @@ signals:
 
 private:
   void copyNewCapture();
+  QFuture<void> m_captureCopy;
   friend class DelayTest;
   Capture::Grab m_captureGrab;
   quint64 m_captureRequestGeneration = 0;

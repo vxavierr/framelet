@@ -19,8 +19,11 @@ class I18nTest : public QObject {
   static QSet<QString> marked() {
     QSet<QString> keys;
     const QString root = QStringLiteral(FRAMELET_SOURCE_DIR);
-    const QRegularExpression qml(R"re(\bqsTr\(\s*"((?:[^"\\]|\\.)*)"\s*\))re");
-    const QRegularExpression cpp(R"re((?<![\w:])tr\(\s*"((?:[^"\\]|\\.)*)"\s*\))re");
+    // qsTr("source") or qsTr("source", "disambiguation"). Plain literals:
+    // moc stops parsing this file at raw strings that contain quotes.
+    const QString text = QStringLiteral("\"((?:[^\"\\\\]|\\\\.)*)\"");
+    const QRegularExpression qml("\\bqsTr\\(\\s*" + text + "\\s*(?:,\\s*" + text + "\\s*)?\\)");
+    const QRegularExpression cpp("(?<![\\w:])tr\\(\\s*" + text + "\\s*\\)");
     for (const auto &[folder, pattern, expression] :
          {std::tuple{root + "/qml", QStringLiteral("*.qml"), qml},
           std::tuple{root + "/src", QStringLiteral("*.cpp"), cpp}}) {
@@ -30,8 +33,11 @@ class I18nTest : public QObject {
         if (!file.open(QIODevice::ReadOnly))
           continue;
         auto matches = expression.globalMatch(QString::fromUtf8(file.readAll()));
-        while (matches.hasNext())
-          keys.insert(unescape(matches.next().captured(1)));
+        while (matches.hasNext()) {
+          const auto match = matches.next();
+          const QString key = unescape(match.captured(1));
+          keys.insert(match.captured(2).isEmpty() ? key : key + '|' + match.captured(2));
+        }
       }
     }
     return keys;
@@ -44,7 +50,7 @@ class I18nTest : public QObject {
   }
   static QStringList placeholders(const QString &text) {
     QStringList found;
-    auto matches = QRegularExpression(R"(%\d)").globalMatch(text);
+    auto matches = QRegularExpression("%\\d").globalMatch(text);
     while (matches.hasNext())
       found << matches.next().captured();
     found.sort();
@@ -82,6 +88,9 @@ private slots:
     QVERIFY(translator.loadJson(QStringLiteral(FRAMELET_SOURCE_DIR "/i18n/pt_BR.json")));
     QCOMPARE(translator.translate("InlineCapture", "Copy"), QString("Copiar"));
     QVERIFY(translator.translate("InlineCapture", "No such source string").isNull());
+    QCOMPARE(translator.translate("HistoryPane", "Open"), QString("Abrir"));
+    QCOMPARE(translator.translate("ToolStyleButton", "Open", "arrowhead"), QString("Aberta"));
+    QCOMPARE(translator.translate("ToolStyleButton", "Filled", "arrowhead"), QString("Preenchida"));
   }
 };
 QTEST_GUILESS_MAIN(I18nTest)

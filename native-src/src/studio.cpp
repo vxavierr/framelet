@@ -415,19 +415,21 @@ void Studio::setCopySavedPath(bool value) {
 QString Studio::language() const {
   return QSettings().value("language", "system").toString();
 }
-// Applies from the next capture or window; the open surfaces keep theirs.
+// The app swaps its translator and retranslates open surfaces right away.
 void Studio::setLanguage(const QString &value) {
   if (!QStringList{"system", "en", "pt_BR"}.contains(value) || value == language())
     return;
   QSettings().setValue("language", value);
   emit changed();
+  emit languageChanged();
 }
 // With "Copy each capture right away" on, the plain capture reaches the
-// clipboard before any annotation. A later copy or save replaces it.
+// clipboard before any annotation. Copy and save wait for it, so their
+// result always replaces it.
 void Studio::copyNewCapture() {
   if (!copyOnCapture() || m_original.isNull())
     return;
-  (void)QtConcurrent::run([image = m_original] {
+  m_captureCopy = QtConcurrent::run([image = m_original] {
     QByteArray png;
     QBuffer buffer(&png);
     buffer.open(QIODevice::WriteOnly);
@@ -1569,6 +1571,29 @@ void Studio::scrollFinished(const QImage &image, bool reachedLimit,
   emit changed();
   emit chooserRequested();
 }
+// An image file or a code card opens straight in the capture overlay, also
+// from an open Framelet window, which it returns to afterwards. Neither is a
+// new capture, so nothing is copied on open.
+bool Studio::openInline(const QImage &image, bool codeCard) {
+  if (m_busy || image.isNull() || (!m_quickMode && !saveDraftNow()))
+    return false;
+  if (!m_quickMode && !m_returnToStudio) {
+    const auto windows = QGuiApplication::allWindows();
+    m_returnToStudio =
+        std::any_of(windows.cbegin(), windows.cend(), [](QWindow *w) {
+          return w->isVisible() && w->title() == "Framelet";
+        });
+  }
+  m_quickMode = true;
+  m_inlineScroll = true;
+  loadImage(image, codeCard ? "Code card" : "Image", false);
+  m_quickState = "choosing";
+  emit changed();
+  emit chooserRequested();
+  if (codeCard)
+    emit codeCardRequested();
+  return true;
+}
 void Studio::scrollFailed(const QString &error) {
   m_busy = false;
   emit scrollEnded();
@@ -1981,8 +2006,10 @@ void Studio::deliverInline(bool save) {
     emit changed();
     if (r.ok) emit dismissRequested();
   });
-  watcher->setFuture(QtConcurrent::run([source = m_original, edits = m_marks.edits(), directory = m_directory, options = m_options, format=m_exportFormat, scale=m_exportScale, save, copyPath] {
+  watcher->setFuture(QtConcurrent::run([source = m_original, edits = m_marks.edits(), directory = m_directory, options = m_options, format=m_exportFormat, scale=m_exportScale, save, copyPath, pendingCopy = m_captureCopy]() mutable {
     Result r;
+    // An early "copy right away" must not land after this copy or path.
+    pendingCopy.waitForFinished();
     const QString folder = save ? directory : QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/framelet";
     if (!QDir().mkpath(folder)) { r.error = tr("Could not create the folder."); return r; }
     r.path = save ? capturePath(QFileInfo(folder).absoluteFilePath(), format=="jpeg" ? "jpg" : "png")

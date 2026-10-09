@@ -19,9 +19,17 @@ bool JsonTranslator::loadJson(const QString &path) {
 }
 
 QString JsonTranslator::translate(const char *, const char *sourceText,
-                                  const char *, int) const {
+                                  const char *disambiguation, int) const {
+  // "Open|arrowhead" tells apart words that read differently in Portuguese.
   // A null result tells Qt to keep the English source.
-  return m_strings.value(QString::fromUtf8(sourceText));
+  const QString source = QString::fromUtf8(sourceText);
+  if (disambiguation && *disambiguation) {
+    const QString specific =
+        m_strings.value(source + '|' + QString::fromUtf8(disambiguation));
+    if (!specific.isNull())
+      return specific;
+  }
+  return m_strings.value(source);
 }
 
 QString JsonTranslator::languageFor(const QString &setting,

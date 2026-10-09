@@ -88,13 +88,17 @@ int main(int argc, char **argv) {
   // Language: FRAMELET_LANG, then the "language" setting (system, en,
   // pt_BR), then the desktop's languages. Missing strings stay in English.
   static JsonTranslator translator;
-  const QString language = JsonTranslator::languageFor(
-      qEnvironmentVariable("FRAMELET_LANG",
-                          QSettings().value("language", "system").toString()),
-      QLocale::system().uiLanguages());
-  if (!language.isEmpty() &&
-      translator.loadJson(":/i18n/" + language + ".json"))
-    app.installTranslator(&translator);
+  const auto applyLanguage = [&app] {
+    app.removeTranslator(&translator);
+    const QString language = JsonTranslator::languageFor(
+        qEnvironmentVariable("FRAMELET_LANG",
+                            QSettings().value("language", "system").toString()),
+        QLocale::system().uiLanguages());
+    if (!language.isEmpty() &&
+        translator.loadJson(":/i18n/" + language + ".json"))
+      app.installTranslator(&translator);
+  };
+  applyLanguage();
   app.setQuitOnLastWindowClosed(false);
   QThreadPool::globalInstance()->setMaxThreadCount(2);
   QCommandLineParser parser;
@@ -166,6 +170,8 @@ int main(int argc, char **argv) {
       : parser.isSet("resume-recording")       ? "resume-recording"
       : parser.isSet("toggle-recording-pause") ? "toggle-recording-pause"
       : parser.isSet("record")                 ? "record"
+      : parser.isSet("code")                   ? "code"
+      : parser.isSet("inline")                 ? "inline"
       : !file.isEmpty()                        ? "open"
       : parser.isSet("history")                ? "history"
       : parser.isSet("studio")                 ? "studio"
@@ -277,6 +283,10 @@ int main(int argc, char **argv) {
   FilePicker filePicker([&] { return studio.outputDirectory(); },
                         [&] { return video.outputDirectory(); });
   QQmlApplicationEngine engine;
+  QObject::connect(&studio, &Studio::languageChanged, &app, [&] {
+    applyLanguage();
+    engine.retranslate();
+  });
   engine.addImageProvider("frames", store);
   engine.addImageProvider("history", historyImages);
   engine.rootContext()->setContextProperty("history", &history);
@@ -1064,7 +1074,15 @@ int main(int argc, char **argv) {
             window->requestActivate();
           return;
         }
-        if (cmd == "open")
+        // A code card or an image for the overlay opens in the overlay, and
+        // returns to this window afterwards.
+        if (cmd == "code") {
+          QImage placeholder(300, 200, QImage::Format_RGB32);
+          placeholder.fill(QColor("#20232b"));
+          studio.openInline(placeholder, true);
+        } else if (cmd == "inline")
+          studio.openInline(QImage(request.value("file").toString()), false);
+        else if (cmd == "open")
           requestNavigation(
               cmd, QUrl::fromLocalFile(request.value("file").toString()));
         else if (cmd == "record" || cmd == "repeat" || cmd == "capture" ||
@@ -1095,11 +1113,9 @@ int main(int argc, char **argv) {
     QTimer::singleShot(0, &studio, [&] {
       if (parser.isSet("code")) {
         QImage placeholder(300,200,QImage::Format_RGB32);placeholder.fill(QColor("#20232b"));
-        studio.scrollFinished(placeholder,false,true);
+        studio.openInline(placeholder, true);
       } else if (parser.isSet("inline")) {
-        const QImage image(file);
-        if (image.isNull()) { app.exit(1); return; }
-        studio.scrollFinished(image, false, true);
+        if (!studio.openInline(QImage(file), false)) { app.exit(1); return; }
       } else if (command == "record")
         studio.captureVideo();
       else if (command == "repeat")

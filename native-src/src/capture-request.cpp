@@ -34,7 +34,7 @@ bool CaptureRequest::decode(const QJsonObject &request, QString &command,
                             int &seconds) {
   command = request.value("command").toString();
   if (!QStringList{"capture", "screen", "repeat", "scroll", "record", "studio", "history",
-                   "open", "stop-recording", "pause-recording",
+                   "open", "code", "inline", "stop-recording", "pause-recording",
                    "resume-recording", "toggle-recording-pause"}
            .contains(command))
     return false;

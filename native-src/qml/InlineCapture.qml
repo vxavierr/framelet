@@ -59,13 +59,13 @@ ApplicationWindow {
     onVisibleChanged: {
         if (visible) {
             tool = "arrow"; pending = false; previewReady = !studio.rendering; finishing = studio.style !== 8 || studio.framing.custom;
-            if (codeAtStartup && !codeStarted) { codeStarted=true; Qt.callLater(() => codePanel.open()); }
         }
         else { delivery.stop(); pending = false; }
     }
     Connections {
         target: studio
         function onChanged() { if (!studio.rendering && studio.hasImage) root.previewReady = true; }
+        function onCodeCardRequested() { Qt.callLater(() => codePanel.open()); }
     }
     Shortcut { sequence: "Meta+C"; enabled: root.visible && !studio.busy; onActivated: root.deliver(false) }
     Shortcut { sequence: "Meta+S"; enabled: root.visible && !studio.busy; onActivated: root.deliver(true) }

@@ -689,7 +689,7 @@ ApplicationWindow {
                     Text {
                         textFormat: Text.PlainText
                         Layout.fillWidth: true
-                        text: "The capture overlay, selection, recording controls and History follow this language from the next capture."
+                        text: "The capture overlay, selection, recording controls and History switch to this language right away."
                         color: theme.muted
                         font.family: theme.fontFamily
                         font.pixelSize: 11

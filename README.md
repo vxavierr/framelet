@@ -116,7 +116,7 @@ The launcher accepts `--inline image.png`, `--scroll`, `--screen`, `--record`, `
 
 ## Language
 
-The capture overlay, style panel, selection, countdown, recording controls, History and status messages are available in English and Brazilian Portuguese. **Language** in the Framelet window's settings chooses System, English or Português; it applies from the next capture. `language=pt_BR` in `Framelet.conf` or `FRAMELET_LANG=pt_BR` do the same. The editor window is in English.
+The capture overlay, style panel, selection, countdown, recording controls, History and status messages are available in English and Brazilian Portuguese. **Language** in the Framelet window's settings chooses System, English or Português, and applies right away. `language=pt_BR` in `Framelet.conf` or `FRAMELET_LANG=pt_BR` do the same. The editor window is in English.
 
 ## Your files stay yours
 

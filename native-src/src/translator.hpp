@@ -5,7 +5,8 @@
 
 // Translations without Qt's Linguist tools: a JSON object maps each English
 // source string to its translation. The context is ignored on purpose, so a
-// label reads the same on every Framelet surface.
+// label reads the same on every Framelet surface; a "source|disambiguation"
+// key covers the few words that need two translations.
 class JsonTranslator : public QTranslator {
 public:
   bool loadJson(const QString &path);

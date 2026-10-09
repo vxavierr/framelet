@@ -111,6 +111,11 @@ private slots:
     QVERIFY(decode({{"command", "history"}, {"delaySeconds", -1}}, cmd, seconds));
     QVERIFY(!decode({{"command", "history"}, {"delaySeconds", 3}}, cmd, seconds));
     QVERIFY(!decode({{"command", "bogus"}}, cmd, seconds));
+    QVERIFY(decode({{"command", "code"}}, cmd, seconds));
+    QCOMPARE(cmd, QString("code"));
+    QVERIFY(decode({{"command", "inline"}, {"file", "/tmp/a.png"}}, cmd, seconds));
+    QCOMPARE(cmd, QString("inline"));
+    QVERIFY(!decode({{"command", "code"}, {"delaySeconds", 3}}, cmd, seconds));
     for (const auto *request : {"capture", "screen", "repeat"})
       QCOMPARE(handle(request, true, true), Handling::Cancel);
     for (const auto *request : {"scroll", "record", "open", "studio", "history"})

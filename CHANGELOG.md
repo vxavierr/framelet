@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.1
+
+- The bar's **Code card** and opening an image in the overlay work while a History window is open; they used to turn into a region capture or open in the editor.
+- **Copy each capture right away** no longer copies a code card placeholder or an opened file, and Copy or Save always lands after it.
+- Changing **Language** applies at once to open Framelet surfaces.
+- A failed or busy forwarded command no longer takes Super+C/S away from an open overlay; the launcher resets the key map only after a crash.
+- Two captures pressed during an engine update share one build and one notification.
+- "Open" reads "Abrir" in History; the arrowhead options are translated.
+
 ## 0.4.0
 
 - **Super+S saves and copies the path.** The file's full path goes to the clipboard as text, ready to paste into a terminal, chat or file field. Turn it off with "Saving copies the file path".

@@ -170,7 +170,7 @@ StudioButton {
                         Choice {
                             Layout.fillWidth: true
                             implicitHeight: 30
-                            model: ["Open", "Filled"]
+                            model: [qsTr("Open", "arrowhead"), qsTr("Filled", "arrowhead")]
                             currentIndex: control.style.arrowHead === "filled" ? 1 : 0
                             onActivated: index => control.apply({arrowHead: index ? "filled" : "open"})
                         }
