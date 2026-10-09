@@ -1526,13 +1526,13 @@ void Studio::captureVideo() {
 void Studio::deliverInline(bool save) {
   if (m_busy || m_rendering || m_original.isNull()) return;
   m_busy = true;
-  m_status = save ? "Salvando…" : "Copiando…";
+  m_status = save ? "Saving…" : "Copying…";
   emit changed();
   struct Result { bool ok = false; QString path, error; };
   auto *watcher = new QFutureWatcher<Result>(this);
   connect(watcher, &QFutureWatcher<Result>::finished, this, [this, watcher, save] {
     const auto r = watcher->result(); watcher->deleteLater(); m_busy = false;
-    m_status = r.ok ? (save ? "Imagem salva." : "Imagem copiada.") : r.error;
+    m_status = r.ok ? (save ? "Image saved." : "Image copied.") : r.error;
     if (r.ok) { m_savedPath = save ? r.path : QString(); m_quickState = "done"; }
     else m_quickState = "failed";
     emit changed();
@@ -1541,22 +1541,22 @@ void Studio::deliverInline(bool save) {
   watcher->setFuture(QtConcurrent::run([source = m_original, edits = m_marks.edits(), directory = m_directory, options = m_options, format=m_exportFormat, scale=m_exportScale, save] {
     Result r;
     const QString folder = save ? directory : QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation) + "/framelet";
-    if (!QDir().mkpath(folder)) { r.error = "Não foi possível criar a pasta."; return r; }
+    if (!QDir().mkpath(folder)) { r.error = "Could not create the folder."; return r; }
     r.path = folder + "/Framelet-" + QUuid::createUuid().toString(QUuid::Id128) + (save && format=="jpeg"?".jpg":".png");
     const QImage marked=Frame::applyEdits(source, edits);
     const QSize output=Frame::outputSize(marked.size(),options,options.custom ? QMargins() : Frame::edgeRoom(marked))*scale;
-    if(output.width()>32000 || output.height()>32000 || qint64(output.width())*output.height()>50000000) { r.error = "A composição excedeu o limite de tamanho. Reduza a margem ou a proporção."; return r; }
+    if(output.width()>32000 || output.height()>32000 || qint64(output.width())*output.height()>50000000) { r.error = "The composition is over the size limit. Reduce the margin or the aspect ratio."; return r; }
     const QImage composed = Frame::compose(marked, options);
     QImage edited(composed.size(),QImage::Format_ARGB32_Premultiplied);edited.fill(Qt::transparent);
     { QPainter painter(&edited);painter.drawImage(0,0,composed); }
-    if (edited.isNull()) { r.error = "Não foi possível compor a imagem."; return r; }
+    if (edited.isNull()) { r.error = "Could not compose the image."; return r; }
     if(scale>1) edited=edited.scaled(output,Qt::IgnoreAspectRatio,Qt::SmoothTransformation);
     if(save && format=="jpeg") {
       QImage opaque(edited.size(),QImage::Format_RGB32);opaque.fill(Qt::white);
       {QPainter painter(&opaque);painter.drawImage(0,0,edited);}
-      QSaveFile file(r.path);if(!file.open(QIODevice::WriteOnly)){r.error="Não foi possível salvar a imagem.";return r;}
+      QSaveFile file(r.path);if(!file.open(QIODevice::WriteOnly)){r.error="Could not save the image.";return r;}
       QImageWriter writer(&file,"JPEG");writer.setQuality(95);
-      if(!writer.write(opaque) || !file.commit()){r.error="Não foi possível salvar o JPEG.";return r;}
+      if(!writer.write(opaque) || !file.commit()){r.error="Could not save the JPEG.";return r;}
     } else if (!writePng(r.path, edited, r.error, !save)) return r;
     if (save) r.ok = true;
     else { r.ok = copyPng(r.path, r.error); QFile::remove(r.path); }
@@ -1640,28 +1640,28 @@ void Studio::applyLook(const QString &name) {
 void Studio::addImage(const QUrl &file,bool vertical) {
   if(m_busy)return;
   QImageReader reader(file.toLocalFile());reader.setAutoTransform(true);
-  if(!file.isLocalFile() || !ScrollUi::withinImageBudget(reader.size())){m_status="Escolha uma imagem local menor.";emit changed();return;}
+  if(!file.isLocalFile() || !ScrollUi::withinImageBudget(reader.size())){m_status="Choose a smaller local image.";emit changed();return;}
   const QImage other=reader.read();
-  if(other.isNull()){m_status="Não foi possível abrir essa imagem.";emit changed();return;}
-  if(m_original.isNull()){loadImage(other,"Composição",false);return;}
+  if(other.isNull()){m_status="Could not open that image.";emit changed();return;}
+  if(m_original.isNull()){loadImage(other,"Composition",false);return;}
   const QImage first=Frame::applyEdits(m_original,m_marks.edits());
   const int gap=24;
   QSize size=vertical?QSize(std::max(first.width(),other.width()),first.height()+other.height()+gap):QSize(first.width()+other.width()+gap,std::max(first.height(),other.height()));
-  if(qint64(size.width())*size.height()>50000000 || size.width()>32000 || size.height()>32000){m_status="Essa composição ficou grande demais.";emit changed();return;}
+  if(qint64(size.width())*size.height()>50000000 || size.width()>32000 || size.height()>32000){m_status="That composition is too large.";emit changed();return;}
   QImage result(size,QImage::Format_ARGB32_Premultiplied);result.fill(Qt::transparent);
   QPainter painter(&result);painter.drawImage(0,0,first);painter.drawImage(vertical?0:first.width()+gap,vertical?first.height()+gap:0,other);painter.end();
-  m_inlineScroll=true;loadImage(result,"Composição",false);
+  m_inlineScroll=true;loadImage(result,"Composition",false);
 }
 
 void Studio::makeCodeCard(const QString &text,const QString &language,int pixels,bool numbers) {
   if(m_busy || text.trimmed().isEmpty())return;
-  if(text.size()>256000){m_status="Esse texto ficou grande demais para um cartão.";emit changed();return;}
-  m_busy=true;m_status="Preparando cartão de código…";emit changed();
+  if(text.size()>256000){m_status="That text is too long for a card.";emit changed();return;}
+  m_busy=true;m_status="Preparing code card…";emit changed();
   auto *watcher=new QFutureWatcher<QImage>(this);
   connect(watcher,&QFutureWatcher<QImage>::finished,this,[this,watcher] {
     auto image=watcher->result();watcher->deleteLater();m_busy=false;
-    if(image.isNull()){m_status="Não foi possível criar o cartão. Reduza o texto.";emit changed();return;}
-    m_inlineScroll=true;loadImage(image,"Cartão de código",false);
+    if(image.isNull()){m_status="Could not create the card. Shorten the text.";emit changed();return;}
+    m_inlineScroll=true;loadImage(image,"Code card",false);
   });
   watcher->setFuture(QtConcurrent::run([text,language,pixels,numbers] {
     const int size=std::clamp(pixels,12,32);

@@ -62,7 +62,7 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
         StudioButton {
-            text: "Escolher"
+            text: "Custom"
             implicitHeight: 28
             padding: 7
             font.pixelSize: 11

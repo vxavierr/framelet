@@ -120,7 +120,6 @@ Previous CapturaUnificada settings and drafts are copied once. Originals remain 
 
 - Automatic scrolling needs a responsive, scrollable area with enough visual detail to stitch. Animated or repetitive content may need manual scrolling.
 - Composition flattens existing annotations into the combined image; images cannot yet be reordered independently.
-- The capture overlay currently contains Portuguese labels. This README is in English.
 - Postcard's magnifier, spotlight, wallpaper backgrounds, four-colour gradients and full code-theme catalogue are not included.
 - Tested on x86_64, Omarchy 4.0.4 and Qt 6.11.2. Other configurations need verification.
 

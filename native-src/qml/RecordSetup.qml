@@ -24,7 +24,7 @@ Window {
     palette.dark: theme.frame
     color: "transparent"
     flags: Qt.FramelessWindowHint
-    title: "Framelet — gravação"
+    title: "Framelet — recording"
     readonly property int wantedHeight: content.implicitHeight + recordFooter.implicitHeight + 72
     onWantedHeightChanged: if (visible) height = Math.min(wantedHeight, screen ? screen.height : wantedHeight)
     onVisibleChanged: if (visible) keys.forceActiveFocus()
